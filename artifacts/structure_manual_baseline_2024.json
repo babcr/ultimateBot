@@ -1,0 +1,323 @@
+{
+  "baseline": {
+    "label": "manual",
+    "phase": "manual",
+    "runtime_seconds": 449.9234765000001,
+    "overrides": {
+      "enabled": true,
+      "pivot_window": 3,
+      "level_lookback_bars": 2000,
+      "max_levels_per_side": 8,
+      "level_merge_atr_ratio": 0.05,
+      "level_merge_min_points": 3.0,
+      "near_level_atr": 0.3,
+      "entry_distance_atr": 0.75,
+      "breakout_distance_atr": 0.5,
+      "breakout_max_extension_atr": 0.35,
+      "min_level_quality": 0.65,
+      "min_level_touches": 3,
+      "pattern_confidence_threshold": 0.65,
+      "directional_bias_threshold": 0.2,
+      "min_entry_quality": 0.55,
+      "min_breakout_quality": 0.65,
+      "min_rr_ratio": 1.25,
+      "decision_margin_threshold": 0.12,
+      "require_weekly_alignment": true,
+      "weekly_alignment_weight": 0.6,
+      "rule_margin_threshold": 0.36,
+      "overlay_weight": 0.9,
+      "confirmation_body_ratio": 0.38,
+      "doji_body_ratio": 0.18,
+      "allow_rule_entry_from_flat": true,
+      "allow_rule_reversal": false
+    },
+    "resolved_rules": {
+      "enabled": true,
+      "pivot_window": 3,
+      "level_lookback_bars": 2000,
+      "max_levels_per_side": 8,
+      "level_merge_atr_ratio": 0.05,
+      "level_merge_min_points": 3.0,
+      "near_level_atr": 0.3,
+      "entry_distance_atr": 0.75,
+      "breakout_distance_atr": 0.5,
+      "breakout_max_extension_atr": 0.35,
+      "min_level_quality": 0.65,
+      "min_level_touches": 3,
+      "pattern_confidence_threshold": 0.65,
+      "directional_bias_threshold": 0.2,
+      "min_entry_quality": 0.55,
+      "min_breakout_quality": 0.65,
+      "min_rr_ratio": 1.25,
+      "decision_margin_threshold": 0.12,
+      "require_weekly_alignment": true,
+      "weekly_alignment_weight": 0.6,
+      "rule_margin_threshold": 0.36,
+      "overlay_weight": 0.9,
+      "confirmation_body_ratio": 0.38,
+      "doji_body_ratio": 0.18,
+      "allow_rule_entry_from_flat": true,
+      "allow_rule_reversal": false
+    },
+    "final_balance": 45.65951466999539,
+    "total_pnl": -4.340485330004611,
+    "trade_count": 74,
+    "wins": 19,
+    "losses": 55,
+    "win_rate": 0.25675675675675674,
+    "profit_factor": 0.8442105563298921,
+    "avg_pnl": -0.05865520716222448,
+    "avg_win": 1.2379338652496374,
+    "avg_loss": -0.5065677958135948,
+    "expectancy": -0.05865520716222439,
+    "max_drawdown_value": 7.249044485855784,
+    "max_drawdown_pct": 13.994702070151055,
+    "stop_loss_closes": 55,
+    "take_profit_closes": 19,
+    "other_closes": 0,
+    "diagnostics": {
+      "analysis_windows": 4251,
+      "decision_windows": 95,
+      "decision_rate": 0.022347682898141614,
+      "buy_setup_ok_count": 63,
+      "sell_setup_ok_count": 46,
+      "rule_signal_counts": {
+        "flat": 4113,
+        "sell": 62,
+        "buy": 76
+      },
+      "signal_side_counts": {
+        "sell": 40,
+        "buy": 55
+      },
+      "top_buy_blockers": [
+        [
+          "poor_rr",
+          3297
+        ],
+        [
+          "no_bullish_confirmation",
+          3075
+        ],
+        [
+          "resistance_too_close",
+          3051
+        ],
+        [
+          "weekly_candle_mismatch",
+          2552
+        ],
+        [
+          "opposite_trend_bias",
+          1682
+        ],
+        [
+          "opposite_confirmed_pattern",
+          1014
+        ],
+        [
+          "no_support_level",
+          321
+        ]
+      ],
+      "top_sell_blockers": [
+        [
+          "poor_rr",
+          3280
+        ],
+        [
+          "support_too_close",
+          3085
+        ],
+        [
+          "no_bearish_confirmation",
+          3081
+        ],
+        [
+          "weekly_candle_mismatch",
+          2425
+        ],
+        [
+          "opposite_trend_bias",
+          1607
+        ],
+        [
+          "opposite_confirmed_pattern",
+          858
+        ],
+        [
+          "no_resistance_level",
+          350
+        ]
+      ],
+      "buy_styles": {
+        "support_bounce": 1885
+      },
+      "sell_styles": {
+        "resistance_rejection": 1910
+      }
+    }
+  },
+  "shortlisted_parameters": {},
+  "results": [
+    {
+      "label": "manual",
+      "phase": "manual",
+      "runtime_seconds": 449.9234765000001,
+      "overrides": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    }
+  ]
+}

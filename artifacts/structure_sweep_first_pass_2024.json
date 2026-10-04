@@ -1,0 +1,2251 @@
+{
+  "baseline": {
+    "label": "baseline",
+    "phase": "baseline",
+    "runtime_seconds": 308.3983849999986,
+    "overrides": {
+      "enabled": true,
+      "pivot_window": 3,
+      "level_lookback_bars": 2000,
+      "max_levels_per_side": 8,
+      "level_merge_atr_ratio": 0.05,
+      "level_merge_min_points": 3.0,
+      "near_level_atr": 0.3,
+      "entry_distance_atr": 0.75,
+      "breakout_distance_atr": 0.5,
+      "breakout_cross_allowance_atr": 0.05,
+      "breakout_retest_tolerance_atr": 0.2,
+      "breakout_max_extension_atr": 0.35,
+      "min_level_quality": 0.65,
+      "min_level_touches": 3,
+      "pattern_confidence_threshold": 0.65,
+      "directional_bias_threshold": 0.2,
+      "min_entry_quality": 0.55,
+      "min_breakout_quality": 0.65,
+      "min_rr_ratio": 1.25,
+      "min_target_distance_atr": 0.7,
+      "decision_margin_threshold": 0.12,
+      "require_weekly_alignment": true,
+      "weekly_alignment_weight": 0.6,
+      "rule_margin_threshold": 0.36,
+      "overlay_weight": 0.9,
+      "confirmation_body_ratio": 0.38,
+      "doji_body_ratio": 0.18,
+      "allow_rule_entry_from_flat": true,
+      "allow_rule_reversal": false
+    },
+    "resolved_rules": {
+      "enabled": true,
+      "pivot_window": 3,
+      "level_lookback_bars": 2000,
+      "max_levels_per_side": 8,
+      "level_merge_atr_ratio": 0.05,
+      "level_merge_min_points": 3.0,
+      "near_level_atr": 0.3,
+      "entry_distance_atr": 0.75,
+      "breakout_distance_atr": 0.5,
+      "breakout_cross_allowance_atr": 0.05,
+      "breakout_retest_tolerance_atr": 0.2,
+      "breakout_max_extension_atr": 0.35,
+      "min_level_quality": 0.65,
+      "min_level_touches": 3,
+      "pattern_confidence_threshold": 0.65,
+      "directional_bias_threshold": 0.2,
+      "min_entry_quality": 0.55,
+      "min_breakout_quality": 0.65,
+      "min_rr_ratio": 1.25,
+      "min_target_distance_atr": 0.7,
+      "decision_margin_threshold": 0.12,
+      "require_weekly_alignment": true,
+      "weekly_alignment_weight": 0.6,
+      "rule_margin_threshold": 0.36,
+      "overlay_weight": 0.9,
+      "confirmation_body_ratio": 0.38,
+      "doji_body_ratio": 0.18,
+      "allow_rule_entry_from_flat": true,
+      "allow_rule_reversal": false
+    },
+    "final_balance": 45.65951466999539,
+    "total_pnl": -4.340485330004611,
+    "trade_count": 74,
+    "wins": 19,
+    "losses": 55,
+    "win_rate": 0.25675675675675674,
+    "profit_factor": 0.8442105563298921,
+    "avg_pnl": -0.05865520716222448,
+    "avg_win": 1.2379338652496374,
+    "avg_loss": -0.5065677958135948,
+    "expectancy": -0.05865520716222439,
+    "max_drawdown_value": 7.249044485855784,
+    "max_drawdown_pct": 13.994702070151055,
+    "stop_loss_closes": 55,
+    "take_profit_closes": 19,
+    "other_closes": 0,
+    "diagnostics": {
+      "analysis_windows": 4251,
+      "decision_windows": 95,
+      "decision_rate": 0.022347682898141614,
+      "buy_setup_ok_count": 63,
+      "sell_setup_ok_count": 46,
+      "rule_signal_counts": {
+        "flat": 4113,
+        "sell": 62,
+        "buy": 76
+      },
+      "signal_side_counts": {
+        "sell": 40,
+        "buy": 55
+      },
+      "top_buy_blockers": [
+        [
+          "poor_rr",
+          3297
+        ],
+        [
+          "no_bullish_confirmation",
+          3075
+        ],
+        [
+          "resistance_too_close",
+          3051
+        ],
+        [
+          "weekly_candle_mismatch",
+          2552
+        ],
+        [
+          "opposite_trend_bias",
+          1682
+        ],
+        [
+          "opposite_confirmed_pattern",
+          1014
+        ],
+        [
+          "no_support_level",
+          321
+        ]
+      ],
+      "top_sell_blockers": [
+        [
+          "poor_rr",
+          3280
+        ],
+        [
+          "support_too_close",
+          3085
+        ],
+        [
+          "no_bearish_confirmation",
+          3081
+        ],
+        [
+          "weekly_candle_mismatch",
+          2425
+        ],
+        [
+          "opposite_trend_bias",
+          1607
+        ],
+        [
+          "opposite_confirmed_pattern",
+          858
+        ],
+        [
+          "no_resistance_level",
+          350
+        ]
+      ],
+      "buy_styles": {
+        "support_bounce": 1885
+      },
+      "sell_styles": {
+        "resistance_rejection": 1910
+      }
+    }
+  },
+  "shortlisted_parameters": {
+    "min_target_distance_atr": [
+      0.7,
+      0.35,
+      0.5
+    ]
+  },
+  "results": [
+    {
+      "label": "baseline",
+      "phase": "baseline",
+      "runtime_seconds": 308.3983849999986,
+      "overrides": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "level_lookback_bars=500",
+      "phase": "one-factor",
+      "runtime_seconds": 290.4247890000006,
+      "overrides": {
+        "level_lookback_bars": 500
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 500,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 35.16225545573296,
+      "total_pnl": -14.83774454426704,
+      "trade_count": 137,
+      "wins": 29,
+      "losses": 108,
+      "win_rate": 0.2116788321167883,
+      "profit_factor": 0.7013558433999186,
+      "avg_pnl": -0.10830470470267912,
+      "avg_win": 1.2015844239085516,
+      "avg_loss": -0.46003419294088,
+      "expectancy": -0.10830470470267917,
+      "max_drawdown_value": 16.876153799393066,
+      "max_drawdown_pct": 32.58480291019279,
+      "stop_loss_closes": 108,
+      "take_profit_closes": 29,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 5751,
+        "decision_windows": 197,
+        "decision_rate": 0.03425491218918449,
+        "buy_setup_ok_count": 113,
+        "sell_setup_ok_count": 99,
+        "rule_signal_counts": {
+          "flat": 5455,
+          "buy": 157,
+          "sell": 139
+        },
+        "signal_side_counts": {
+          "sell": 91,
+          "buy": 106
+        },
+        "top_buy_blockers": [
+          [
+            "no_bullish_confirmation",
+            4164
+          ],
+          [
+            "weekly_candle_mismatch",
+            3429
+          ],
+          [
+            "poor_rr",
+            3263
+          ],
+          [
+            "resistance_too_close",
+            2325
+          ],
+          [
+            "opposite_trend_bias",
+            2228
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1307
+          ],
+          [
+            "no_support_level",
+            1290
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "no_bearish_confirmation",
+            4187
+          ],
+          [
+            "poor_rr",
+            3501
+          ],
+          [
+            "weekly_candle_mismatch",
+            3308
+          ],
+          [
+            "support_too_close",
+            2267
+          ],
+          [
+            "opposite_trend_bias",
+            2214
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1233
+          ],
+          [
+            "no_resistance_level",
+            948
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1122
+        },
+        "sell_styles": {
+          "resistance_rejection": 1136
+        }
+      }
+    },
+    {
+      "label": "level_lookback_bars=1000",
+      "phase": "one-factor",
+      "runtime_seconds": 276.05600750000303,
+      "overrides": {
+        "level_lookback_bars": 1000
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 1000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 40.15705485149174,
+      "total_pnl": -9.842945148508257,
+      "trade_count": 125,
+      "wins": 30,
+      "losses": 95,
+      "win_rate": 0.24,
+      "profit_factor": 0.7795503259196812,
+      "avg_pnl": -0.07874356118806605,
+      "avg_win": 1.1602150816718892,
+      "avg_loss": -0.469993658933315,
+      "expectancy": -0.07874356118806602,
+      "max_drawdown_value": 12.732178045670679,
+      "max_drawdown_pct": 24.20737585873489,
+      "stop_loss_closes": 95,
+      "take_profit_closes": 30,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 5251,
+        "decision_windows": 150,
+        "decision_rate": 0.02856598743096553,
+        "buy_setup_ok_count": 98,
+        "sell_setup_ok_count": 66,
+        "rule_signal_counts": {
+          "flat": 5029,
+          "buy": 118,
+          "sell": 104
+        },
+        "signal_side_counts": {
+          "buy": 89,
+          "sell": 61
+        },
+        "top_buy_blockers": [
+          [
+            "no_bullish_confirmation",
+            3800
+          ],
+          [
+            "poor_rr",
+            3459
+          ],
+          [
+            "weekly_candle_mismatch",
+            3093
+          ],
+          [
+            "resistance_too_close",
+            3080
+          ],
+          [
+            "opposite_trend_bias",
+            2059
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1215
+          ],
+          [
+            "no_support_level",
+            727
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "no_bearish_confirmation",
+            3813
+          ],
+          [
+            "poor_rr",
+            3580
+          ],
+          [
+            "weekly_candle_mismatch",
+            3052
+          ],
+          [
+            "support_too_close",
+            3020
+          ],
+          [
+            "opposite_trend_bias",
+            1999
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1100
+          ],
+          [
+            "no_resistance_level",
+            493
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1611
+        },
+        "sell_styles": {
+          "resistance_rejection": 1670
+        }
+      }
+    },
+    {
+      "label": "breakout_distance_atr=0.1000",
+      "phase": "one-factor",
+      "runtime_seconds": 276.21891909999977,
+      "overrides": {
+        "breakout_distance_atr": 0.1
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.1,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "breakout_distance_atr=0.2000",
+      "phase": "one-factor",
+      "runtime_seconds": 276.75190479999947,
+      "overrides": {
+        "breakout_distance_atr": 0.2
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.2,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "breakout_distance_atr=0.3500",
+      "phase": "one-factor",
+      "runtime_seconds": 314.1087718000017,
+      "overrides": {
+        "breakout_distance_atr": 0.35
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.35,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "breakout_max_extension_atr=0.6000",
+      "phase": "one-factor",
+      "runtime_seconds": 325.7381286000018,
+      "overrides": {
+        "breakout_max_extension_atr": 0.6
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.6,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "breakout_max_extension_atr=0.9000",
+      "phase": "one-factor",
+      "runtime_seconds": 333.358636500001,
+      "overrides": {
+        "breakout_max_extension_atr": 0.9
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.9,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "min_rr_ratio=0.7500",
+      "phase": "one-factor",
+      "runtime_seconds": 335.4796951999997,
+      "overrides": {
+        "min_rr_ratio": 0.75
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 0.75,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "poor_rr",
+            2756
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "poor_rr",
+            2753
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "min_rr_ratio=1.0000",
+      "phase": "one-factor",
+      "runtime_seconds": 257.084899999998,
+      "overrides": {
+        "min_rr_ratio": 1.0
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.0,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.65951466999539,
+      "total_pnl": -4.340485330004611,
+      "trade_count": 74,
+      "wins": 19,
+      "losses": 55,
+      "win_rate": 0.25675675675675674,
+      "profit_factor": 0.8442105563298921,
+      "avg_pnl": -0.05865520716222448,
+      "avg_win": 1.2379338652496374,
+      "avg_loss": -0.5065677958135948,
+      "expectancy": -0.05865520716222439,
+      "max_drawdown_value": 7.249044485855784,
+      "max_drawdown_pct": 13.994702070151055,
+      "stop_loss_closes": 55,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 95,
+        "decision_rate": 0.022347682898141614,
+        "buy_setup_ok_count": 63,
+        "sell_setup_ok_count": 46,
+        "rule_signal_counts": {
+          "flat": 4113,
+          "sell": 62,
+          "buy": 76
+        },
+        "signal_side_counts": {
+          "sell": 40,
+          "buy": 55
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3091
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "poor_rr",
+            3069
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "min_target_distance_atr=0.3500",
+      "phase": "one-factor",
+      "runtime_seconds": 255.7294387999973,
+      "overrides": {
+        "min_target_distance_atr": 0.35
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.35,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 46.447382633855995,
+      "total_pnl": -3.5526173661440055,
+      "trade_count": 83,
+      "wins": 22,
+      "losses": 61,
+      "win_rate": 0.26506024096385544,
+      "profit_factor": 0.8877370542430422,
+      "avg_pnl": -0.04280261886920488,
+      "avg_win": 1.2769493386539976,
+      "avg_loss": -0.5187787346972448,
+      "expectancy": -0.04280261886920461,
+      "max_drawdown_value": 7.849260147469195,
+      "max_drawdown_pct": 14.824014700116717,
+      "stop_loss_closes": 61,
+      "take_profit_closes": 22,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 127,
+        "decision_rate": 0.029875323453305104,
+        "buy_setup_ok_count": 79,
+        "sell_setup_ok_count": 71,
+        "rule_signal_counts": {
+          "flat": 4053,
+          "sell": 93,
+          "buy": 105
+        },
+        "signal_side_counts": {
+          "buy": 67,
+          "sell": 60
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "resistance_too_close",
+            2540
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "support_too_close",
+            2533
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "min_target_distance_atr=0.5000",
+      "phase": "one-factor",
+      "runtime_seconds": 255.86787370000093,
+      "overrides": {
+        "min_target_distance_atr": 0.5
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.5,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 45.546557707159806,
+      "total_pnl": -4.453442292840194,
+      "trade_count": 85,
+      "wins": 22,
+      "losses": 63,
+      "win_rate": 0.25882352941176473,
+      "profit_factor": 0.8618777054668434,
+      "avg_pnl": -0.052393438739296395,
+      "avg_win": 1.2631502452740326,
+      "avg_loss": -0.5117896458550623,
+      "expectancy": -0.05239343873929653,
+      "max_drawdown_value": 6.512812477296492,
+      "max_drawdown_pct": 12.510355876800569,
+      "stop_loss_closes": 63,
+      "take_profit_closes": 22,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 112,
+        "decision_rate": 0.026346741943072217,
+        "buy_setup_ok_count": 72,
+        "sell_setup_ok_count": 61,
+        "rule_signal_counts": {
+          "flat": 4078,
+          "sell": 79,
+          "buy": 94
+        },
+        "signal_side_counts": {
+          "buy": 61,
+          "sell": 51
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            2837
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "support_too_close",
+            2841
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    },
+    {
+      "label": "confirmation_body_ratio=0.2000",
+      "phase": "one-factor",
+      "runtime_seconds": 315.310740500001,
+      "overrides": {
+        "confirmation_body_ratio": 0.2
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.2,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 43.46141868204263,
+      "total_pnl": -6.538581317957373,
+      "trade_count": 79,
+      "wins": 19,
+      "losses": 60,
+      "win_rate": 0.24050632911392406,
+      "profit_factor": 0.7781286329207702,
+      "avg_pnl": -0.08276685212604269,
+      "avg_win": 1.2069243945409653,
+      "avg_loss": -0.49116908023726147,
+      "expectancy": -0.08276685212604235,
+      "max_drawdown_value": 8.578332369566077,
+      "max_drawdown_pct": 16.724412738072402,
+      "stop_loss_closes": 60,
+      "take_profit_closes": 19,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 117,
+        "decision_rate": 0.027522935779816515,
+        "buy_setup_ok_count": 79,
+        "sell_setup_ok_count": 52,
+        "rule_signal_counts": {
+          "flat": 4083,
+          "sell": 72,
+          "buy": 96
+        },
+        "signal_side_counts": {
+          "sell": 46,
+          "buy": 71
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "no_bullish_confirmation",
+            2784
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            2818
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 2015
+        },
+        "sell_styles": {
+          "resistance_rejection": 2023
+        }
+      }
+    },
+    {
+      "label": "confirmation_body_ratio=0.5500",
+      "phase": "one-factor",
+      "runtime_seconds": 369.55828589999874,
+      "overrides": {
+        "confirmation_body_ratio": 0.55
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": true,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.55,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 43.56719261576228,
+      "total_pnl": -6.432807384237719,
+      "trade_count": 57,
+      "wins": 13,
+      "losses": 44,
+      "win_rate": 0.22807017543859648,
+      "profit_factor": 0.7066187242594466,
+      "avg_pnl": -0.11285626989890736,
+      "avg_win": 1.1918180100891524,
+      "avg_loss": -0.49832821625901585,
+      "expectancy": -0.11285626989890729,
+      "max_drawdown_value": 8.608503868873257,
+      "max_drawdown_pct": 16.875790169314616,
+      "stop_loss_closes": 44,
+      "take_profit_closes": 13,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 74,
+        "decision_rate": 0.017407668783815573,
+        "buy_setup_ok_count": 50,
+        "sell_setup_ok_count": 36,
+        "rule_signal_counts": {
+          "flat": 4150,
+          "sell": 45,
+          "buy": 56
+        },
+        "signal_side_counts": {
+          "sell": 30,
+          "buy": 44
+        },
+        "top_buy_blockers": [
+          [
+            "no_bullish_confirmation",
+            3399
+          ],
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "weekly_candle_mismatch",
+            2552
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "no_bearish_confirmation",
+            3450
+          ],
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "weekly_candle_mismatch",
+            2425
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1755
+        },
+        "sell_styles": {
+          "resistance_rejection": 1758
+        }
+      }
+    },
+    {
+      "label": "require_weekly_alignment=False",
+      "phase": "one-factor",
+      "runtime_seconds": 363.7853926000025,
+      "overrides": {
+        "require_weekly_alignment": false
+      },
+      "resolved_rules": {
+        "enabled": true,
+        "pivot_window": 3,
+        "level_lookback_bars": 2000,
+        "max_levels_per_side": 8,
+        "level_merge_atr_ratio": 0.05,
+        "level_merge_min_points": 3.0,
+        "near_level_atr": 0.3,
+        "entry_distance_atr": 0.75,
+        "breakout_distance_atr": 0.5,
+        "breakout_cross_allowance_atr": 0.05,
+        "breakout_retest_tolerance_atr": 0.2,
+        "breakout_max_extension_atr": 0.35,
+        "min_level_quality": 0.65,
+        "min_level_touches": 3,
+        "pattern_confidence_threshold": 0.65,
+        "directional_bias_threshold": 0.2,
+        "min_entry_quality": 0.55,
+        "min_breakout_quality": 0.65,
+        "min_rr_ratio": 1.25,
+        "min_target_distance_atr": 0.7,
+        "decision_margin_threshold": 0.12,
+        "require_weekly_alignment": false,
+        "weekly_alignment_weight": 0.6,
+        "rule_margin_threshold": 0.36,
+        "overlay_weight": 0.9,
+        "confirmation_body_ratio": 0.38,
+        "doji_body_ratio": 0.18,
+        "allow_rule_entry_from_flat": true,
+        "allow_rule_reversal": false
+      },
+      "final_balance": 44.88087554140634,
+      "total_pnl": -5.11912445859366,
+      "trade_count": 116,
+      "wins": 30,
+      "losses": 86,
+      "win_rate": 0.25862068965517243,
+      "profit_factor": 0.8816992015514672,
+      "avg_pnl": -0.04413038326373845,
+      "avg_win": 1.2717659860789083,
+      "avg_loss": -0.5031640004762896,
+      "expectancy": -0.044130383263738415,
+      "max_drawdown_value": 11.513552321573286,
+      "max_drawdown_pct": 20.888376558128765,
+      "stop_loss_closes": 86,
+      "take_profit_closes": 30,
+      "other_closes": 0,
+      "diagnostics": {
+        "analysis_windows": 4251,
+        "decision_windows": 153,
+        "decision_rate": 0.03599153140437544,
+        "buy_setup_ok_count": 91,
+        "sell_setup_ok_count": 77,
+        "rule_signal_counts": {
+          "flat": 4098,
+          "sell": 70,
+          "buy": 83
+        },
+        "signal_side_counts": {
+          "sell": 70,
+          "buy": 83
+        },
+        "top_buy_blockers": [
+          [
+            "poor_rr",
+            3297
+          ],
+          [
+            "no_bullish_confirmation",
+            3075
+          ],
+          [
+            "resistance_too_close",
+            3051
+          ],
+          [
+            "opposite_trend_bias",
+            1682
+          ],
+          [
+            "opposite_confirmed_pattern",
+            1014
+          ],
+          [
+            "no_support_level",
+            321
+          ]
+        ],
+        "top_sell_blockers": [
+          [
+            "poor_rr",
+            3280
+          ],
+          [
+            "support_too_close",
+            3085
+          ],
+          [
+            "no_bearish_confirmation",
+            3081
+          ],
+          [
+            "opposite_trend_bias",
+            1607
+          ],
+          [
+            "opposite_confirmed_pattern",
+            858
+          ],
+          [
+            "no_resistance_level",
+            350
+          ]
+        ],
+        "buy_styles": {
+          "support_bounce": 1885
+        },
+        "sell_styles": {
+          "resistance_rejection": 1910
+        }
+      }
+    }
+  ]
+}
