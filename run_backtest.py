@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
-from ultimateBot.backtester.config.backtest_config import RiskConfig, VolatilityConfig
+from ultimateBot.backtester.config.backtest_config import (
+   RiskConfig,
+   VolatilityConfig,
+   format_backtest_bound,
+   format_candle_interval,
+   normalize_candle_interval,
+   resolve_backtest_bounds,
+)
 from ultimateBot.backtester.data.batcher import TickBatcher
 from ultimateBot.backtester.data.file_tick_source import JForexTickSource
 from ultimateBot.backtester.data.merged_feed import MergedTickFeed
@@ -16,6 +25,7 @@ from ultimateBot.backtester.portfolio.position_manager import PositionManager
 from ultimateBot.backtester.reports.report_collector import ReportCollector
 from ultimateBot.backtester.reports.trade_report import TradeCloser
 from ultimateBot.backtester.risk.risk_manager import RiskManager
+from ultimateBot.backtester.strategy.structure_decision_engine import resolve_structure_rules
 from ultimateBot.backtester.strategy.dummy_strategy import DummyStrategy
 from ultimateBot.backtester.strategy.structure_strategy import StructureStrategy
 
@@ -43,6 +53,9 @@ btc_eur_symbols = ["BTCUSD", "EURUSD"]
 eur_symbol = ["EURUSD"]
 DEFAULT_RISK_CONFIG = RiskConfig()
 DEFAULT_VOLATILITY_CONFIG = VolatilityConfig()
+DEFAULT_STRUCTURE_RULES = resolve_structure_rules(None)
+DEFAULT_START_YEAR = 2020
+DEFAULT_END_YEAR = 2020
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,16 +77,28 @@ def parse_args() -> argparse.Namespace:
       help="List of symbols to include in the backtest",
    )
    parser.add_argument(
+      "--start-date",
+      type=str,
+      default=None,
+      help="Inclusive start date for the backtest in YYYY-MM-DD format",
+   )
+   parser.add_argument(
+      "--end-date",
+      type=str,
+      default=None,
+      help="Inclusive end date for the backtest in YYYY-MM-DD format",
+   )
+   parser.add_argument(
       "--start-year",
       type=int,
-      default=2020,
-      help="Start year for the backtest",
+      default=None,
+      help="Fallback inclusive start year when --start-date is not provided",
    )
    parser.add_argument(
       "--end-year",
       type=int,
-      default=2020,
-      help="End year for the backtest",
+      default=None,
+      help="Fallback inclusive end year when --end-date is not provided",
    )
    parser.add_argument(
       "--balance",
@@ -95,6 +120,36 @@ def parse_args() -> argparse.Namespace:
       help="Strategy to run: the legacy market-structure adapter or the dummy smoke strategy",
    )
    parser.add_argument(
+      "--candle-interval",
+      type=str,
+      default=format_candle_interval(DEFAULT_VOLATILITY_CONFIG.candle_interval),
+      help="Base candle period shared by market-state candles, structure analysis and risk volatility (examples: 15m, 1h, 4h, 1d)",
+   )
+   parser.add_argument(
+      "--structure-min-rr-ratio",
+      type=float,
+      default=float(DEFAULT_STRUCTURE_RULES["min_rr_ratio"]),
+      help="Minimum reward/risk ratio required by the structure engine before it accepts an entry",
+   )
+   parser.add_argument(
+      "--structure-stop-source",
+      type=str,
+      choices=["structure_level", "recent_swing"],
+      default=str(DEFAULT_STRUCTURE_RULES["protective_level_source"]),
+      help="Protective stop source for structure signals: origin structure level or most recent swing",
+   )
+   parser.add_argument(
+      "--structure-live-level-count",
+      action="store_true",
+      help="Print the number of elements in the structure level vector during the backtest",
+   )
+   parser.add_argument(
+      "--structure-live-level-count-every",
+      type=int,
+      default=1,
+      help="When live level-count logging is enabled, print one line every N analysis windows",
+   )
+   parser.add_argument(
       "--quantity",
       type=float,
       default=None,
@@ -103,32 +158,32 @@ def parse_args() -> argparse.Namespace:
    parser.add_argument(
       "--risk-percent",
       type=float,
-      default=1.0,
-      help="Risk percentage applied to the selected available capital budget for each trade (for example 1.0 means 1 percent)",
+      default=DEFAULT_RISK_CONFIG.risk_per_trade_percent,
+      help="Risk percentage applied to the selected available capital budget for each trade (for example 25.0 means 25 percent)",
    )
    parser.add_argument(
       "--available-money-ratio",
       type=float,
-      default=1.0,
+      default=DEFAULT_RISK_CONFIG.available_money_ratio,
       help="Share of the selected capital source available to the risk budget",
    )
    parser.add_argument(
       "--available-money-source",
       type=str,
-      default="equity",
+      default=DEFAULT_RISK_CONFIG.available_money_source,
       choices=["equity", "free_margin", "balance"],
       help="Capital source used to build the per-trade risk budget",
    )
    parser.add_argument(
       "--accepted-risk-overrun",
       type=float,
-      default=0.25,
+      default=DEFAULT_RISK_CONFIG.accepted_risk_overrun,
       help="Maximum allowed overshoot above the configured risk percentage when a fixed quantity is supplied",
    )
    parser.add_argument(
       "--max-positions",
       type=int,
-      default=5,
+      default=DEFAULT_RISK_CONFIG.max_positions,
       help="Maximum number of open positions in the backtest",
    )
    parser.add_argument(
@@ -186,16 +241,51 @@ def parse_args() -> argparse.Namespace:
       default=DEFAULT_VOLATILITY_CONFIG.mode,
       help="Controls whether volatility scaling rounds up or down",
    )
-   return parser.parse_args()
+
+   args = parser.parse_args()
+   try:
+      args.start_date, args.end_date = resolve_backtest_bounds(
+         start_date=args.start_date,
+         end_date=args.end_date,
+         start_year=args.start_year,
+         end_year=args.end_year,
+         default_start_year=DEFAULT_START_YEAR,
+         default_end_year=DEFAULT_END_YEAR,
+      )
+   except ValueError as error:
+      parser.error(str(error))
+   return args
 
 
-def build_feed(history_path: Path, symbols: list[str], start_year: int, end_year: int):
+def resolve_backtest_structure_rules(args: argparse.Namespace) -> dict[str, Any]:
+   return resolve_structure_rules(
+      {
+         "min_rr_ratio": getattr(args, "structure_min_rr_ratio", DEFAULT_STRUCTURE_RULES["min_rr_ratio"]),
+         "protective_level_source": getattr(args, "structure_stop_source", DEFAULT_STRUCTURE_RULES["protective_level_source"]),
+         "live_level_count": bool(getattr(args, "structure_live_level_count", False)),
+         "live_level_count_every": max(1, int(getattr(args, "structure_live_level_count_every", 1))),
+      }
+   )
+
+
+def resolve_backtest_candle_interval(args: argparse.Namespace, fallback: Any | None = None) -> timedelta:
+   default_interval = normalize_candle_interval(
+      fallback if fallback is not None else DEFAULT_VOLATILITY_CONFIG.candle_interval,
+      default=DEFAULT_VOLATILITY_CONFIG.candle_interval,
+   )
+   return normalize_candle_interval(
+      getattr(args, "candle_interval", default_interval),
+      default=default_interval,
+   )
+
+
+def build_feed(history_path: Path, symbols: list[str], start_date: date | None, end_date: date | None):
    sources = [
       JForexTickSource(
          base_path=history_path,
          symbol=symbol,
-         start_year=start_year,
-         end_year=end_year,
+         start_date=start_date,
+         end_date=end_date,
       )
       for symbol in symbols
    ]
@@ -214,13 +304,24 @@ def build_engine(
    if strategy is None and args.strategy == "dummy":
       strategy = DummyStrategy(seed=42)
 
+   candle_interval = resolve_backtest_candle_interval(
+      args,
+      fallback=getattr(strategy, "analysis_interval", None),
+   )
+
    if isinstance(strategy, DummyStrategy):
-      market_state = MarketState()
+      market_state = MarketState(candle_interval=candle_interval)
    else:
       if strategy is None:
-         strategy = StructureStrategy()
+         strategy = StructureStrategy(
+            structure_rules=resolve_backtest_structure_rules(args),
+            analysis_interval=candle_interval,
+         )
+      elif hasattr(strategy, "analysis_interval"):
+         strategy.analysis_interval = candle_interval
       # The market state must retain at least as many closed candles as the structure engine requires.
       market_state = MarketState(
+         candle_interval=candle_interval,
          candle_lookback=max(
             int(getattr(strategy, "minimum_candles", 30)),
             int(getattr(strategy, "structure_rules", {}).get("level_lookback_bars", getattr(strategy, "minimum_candles", 30))),
@@ -243,6 +344,7 @@ def build_engine(
          limit_spread_ratio=getattr(args, "limit_spread_ratio", DEFAULT_RISK_CONFIG.limit_spread_ratio),
          max_spread_ratio=getattr(args, "max_spread_ratio", DEFAULT_RISK_CONFIG.max_spread_ratio),
          fixed_quantity=args.quantity,
+         candle_interval=candle_interval,
          candle_lookback=getattr(args, "candle_lookback", DEFAULT_VOLATILITY_CONFIG.candle_lookback),
          minimum_candles=getattr(args, "minimum_candles", DEFAULT_VOLATILITY_CONFIG.minimum_candles),
          granularity_factor=getattr(args, "granularity_factor", DEFAULT_VOLATILITY_CONFIG.granularity_factor),
@@ -281,12 +383,15 @@ def print_symbol_summaries(engine: BacktestEngine) -> None:
       gross_wins = sum(trade.pnl for trade in wins)
       gross_losses = abs(sum(trade.pnl for trade in losses))
       open_positions = open_positions_by_symbol.get(symbol, 0)
+      avg_max_favorable_pnl = sum(trade.max_favorable_pnl for trade in symbol_trades) / max(1, len(symbol_trades))
+      avg_max_adverse_pnl = sum(trade.max_adverse_pnl for trade in symbol_trades) / max(1, len(symbol_trades))
 
       if symbol_trades:
          print(
             f"  {symbol}: closed={len(symbol_trades)} wins={len(wins)} losses={len(losses)} "
             f"win_rate={len(wins) / len(symbol_trades):.2%} pnl={pnl:.2f} "
-            f"open={open_positions} profit_factor={gross_wins / max(1.0, gross_losses):.2f}"
+            f"open={open_positions} profit_factor={gross_wins / max(1.0, gross_losses):.2f} "
+            f"avg_mfe={avg_max_favorable_pnl:.2f} avg_mae={avg_max_adverse_pnl:.2f}"
          )
       else:
          print(f"  {symbol}: closed=0 wins=0 losses=0 win_rate=n/a pnl=0.00 open={open_positions} profit_factor=n/a")
@@ -317,11 +422,19 @@ def print_backtest_summary(engine: BacktestEngine) -> None:
       losses = [trade for trade in trades if trade.pnl <= 0]
       gross_wins = sum(trade.pnl for trade in wins)
       gross_losses = abs(sum(trade.pnl for trade in losses))
+      avg_max_favorable_pnl = sum(trade.max_favorable_pnl for trade in trades) / max(1, len(trades))
+      avg_max_adverse_pnl = sum(trade.max_adverse_pnl for trade in trades) / max(1, len(trades))
+      best_max_favorable_pnl = max(trade.max_favorable_pnl for trade in trades)
+      worst_max_adverse_pnl = min(trade.max_adverse_pnl for trade in trades)
 
       print(f"Winning trades: {len(wins)}")
       print(f"Losing trades: {len(losses)}")
       print(f"Win rate: {len(wins) / max(1, len(trades)):.2%}")
       print(f"Profit factor: {gross_wins / max(1.0, gross_losses):.2f}")
+      print(f"Average max favorable PnL: {avg_max_favorable_pnl:.2f}")
+      print(f"Average max adverse PnL: {avg_max_adverse_pnl:.2f}")
+      print(f"Best max favorable PnL: {best_max_favorable_pnl:.2f}")
+      print(f"Worst max adverse PnL: {worst_max_adverse_pnl:.2f}")
    else:
       print("No trades were executed.")
 
@@ -332,6 +445,8 @@ def print_backtest_summary(engine: BacktestEngine) -> None:
 
 def main() -> None:
    args = parse_args()
+   structure_rules = resolve_backtest_structure_rules(args)
+   candle_interval = resolve_backtest_candle_interval(args)
 
    strategy_analysis_mode = "hourly analysis-window batching" if args.strategy == "structure" else f"fixed-size batching ({args.batch_size} ticks)"
 
@@ -339,12 +454,16 @@ def main() -> None:
    print("Starting backtest with the following parameters:")
    print(f"History path: {args.history}")
    print(f"Symbols: {args.symbols}")
-   print(f"Start year: {args.start_year}")
-   print(f"End year: {args.end_year}")
+   print(f"Start date: {format_backtest_bound(args.start_date)}")
+   print(f"End date: {format_backtest_bound(args.end_date)}")
    print(f"Initial balance: {args.balance}")
    print(f"Batch size: {args.batch_size}")
    print(f"Batching mode: {strategy_analysis_mode}")
+   print(f"Candle interval: {format_candle_interval(candle_interval)}")
    print(f"Strategy: {args.strategy}")
+   if args.strategy == "structure":
+      print(f"Structure min RR ratio: {structure_rules['min_rr_ratio']}")
+      print(f"Structure stop source: {structure_rules['protective_level_source']}")
    print(f"Quantity override: {args.quantity}")
    print(f"Risk percent: {args.risk_percent}")
    print(f"Available money ratio: {args.available_money_ratio}")
@@ -365,8 +484,8 @@ def main() -> None:
    feed = build_feed(
       history_path=args.history,
       symbols=args.symbols,
-      start_year=args.start_year,
-      end_year=args.end_year,
+      start_date=args.start_date,
+      end_date=args.end_date,
    )
    engine = build_engine(feed=feed, args=args)
 

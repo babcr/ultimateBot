@@ -23,6 +23,8 @@ class TradeReport:
    quantity: float
 
    pnl: float
+   max_favorable_pnl: float
+   max_adverse_pnl: float
 
    close_reason: CloseReason
 
@@ -52,5 +54,7 @@ class TradeCloser:
          exit_price=request.price,
          quantity=position.quantity,
          pnl=pnl,
+         max_favorable_pnl=position.max_favorable_pnl,
+         max_adverse_pnl=position.max_adverse_pnl,
          close_reason=request.reason
       )

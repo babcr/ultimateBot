@@ -7,6 +7,19 @@ from ultimateBot.backtester.portfolio.position import Position
 
 class TradeMonitor:
 
+   def _mark_position_excursion(
+      self,
+      position: Position,
+      exit_price: float,
+   ) -> None:
+      if position.side == OrderSide.BUY:
+         unrealized_pnl = (exit_price - position.entry_price) * position.quantity
+      else:
+         unrealized_pnl = (position.entry_price - exit_price) * position.quantity
+
+      position.max_favorable_pnl = max(position.max_favorable_pnl, unrealized_pnl)
+      position.max_adverse_pnl = min(position.max_adverse_pnl, unrealized_pnl)
+
    def check(
       self,
       position: Position,
@@ -17,6 +30,7 @@ class TradeMonitor:
 
       if position.side == OrderSide.BUY:
          exit_price = tick.bid
+         self._mark_position_excursion(position, exit_price)
          if position.stop_loss is not None and exit_price <= position.stop_loss:
             return CloseRequest(
                trade_id=position.trade_id,
@@ -33,6 +47,7 @@ class TradeMonitor:
             )
       elif position.side == OrderSide.SELL:
          exit_price = tick.ask
+         self._mark_position_excursion(position, exit_price)
          if position.stop_loss is not None and exit_price >= position.stop_loss:
             return CloseRequest(
                trade_id=position.trade_id,

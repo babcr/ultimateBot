@@ -38,31 +38,31 @@ DEFAULT_STRUCTURE_RULES = {
     # donc ce parametre n'influe plus vraiment sur les swings detectes.
     "pivot_window": 3,
     # Nombre de bougies fermees analysees pour extraire swings, tendance, supports et resistances.
-    "level_lookback_bars": 2000,
+    "level_lookback_bars": 700,
     # Nombre maximal de niveaux de support et de resistance conserves apres classement.
-    "max_levels_per_side": 8,
+    "max_levels_per_side": 100,
     # Reglage principal du clustering: deux swings sont fusionnes dans le meme cluster si leur ecart
     # est inferieur ou egal a ATR * ce ratio. Le diminuer rend les niveaux plus nets et plus separes.
-    "level_merge_atr_ratio": 0.05,
+    "level_merge_atr_ratio": 0.001,
     # Plancher absolu du clustering en nombre de points instrument. Meme avec un ATR tres faible,
     # un cluster ne sera pas plus etroit que point_size * cette valeur. Le diminuer aussi si besoin.
-    "level_merge_min_points": 3.0,
+    "level_merge_min_points": 2.0,
     # Distance max au prix courant pour qu'un niveau pese encore dans le biais directionnel global.
-    "near_level_atr": 0.3,
+    "near_level_atr": 0.1,
     # Distance max au niveau pour considerer une entree bounce/rejection exploitable.
-    "entry_distance_atr": 0.75,
+    "entry_distance_atr": 0.05,
     # Depassement minimal d'un niveau casse pour reconnaitre un breakout / breakdown valide.
     "breakout_distance_atr": 0.5,
     # Tolere qu'une cloture precedente soit legerement deja au-dessus/en-dessous du niveau casse.
     "breakout_cross_allowance_atr": 0.05,
     # Tolere qu'un retest deborde legerement le niveau casse avant reprise.
-    "breakout_retest_tolerance_atr": 0.20,
+    "breakout_retest_tolerance_atr": 0.10,
     # Extension maximale acceptee apres cassure; au-dela on considere qu'on chasse trop le mouvement.
-    "breakout_max_extension_atr": 0.35,
+    "breakout_max_extension_atr": 1.5,
     # Qualite minimale d'un cluster pour qu'il survive comme niveau tradable.
     "min_level_quality": 0.65,
     # Nombre minimal de touches/swing-points dans un cluster pour le garder.
-    "min_level_touches": 3,
+    "min_level_touches": 7,
     # Confiance minimale pour laisser un pattern chartiste influencer le biais final.
     "pattern_confidence_threshold": 0.65,
     # Seuil minimal du score directionnel pour sortir du mode sideways.
@@ -72,21 +72,24 @@ DEFAULT_STRUCTURE_RULES = {
     # Qualite minimale pour accepter une entree breakout / breakdown, souvent plus exigeante.
     "min_breakout_quality": 0.65,
     # Reward/risk minimal exige une fois le stop structurel et la cible deduits.
-    "min_rr_ratio": 1.25,
+    "min_rr_ratio": 1.4,
+    # Source prioritaire du niveau protecteur: `structure_level` garde le stop sur le niveau qui porte
+    # le setup (support/retest/resistance), `recent_swing` privilegie le dernier retournement local.
+    "protective_level_source": "structure_level",
     # Distance minimale restante jusqu'a l'objectif structurel pour accepter l'entree.
     "min_target_distance_atr": 0.25,
     # Marge minimale buy-vs-sell pour sortir de l'indecision structurelle pure.
     "decision_margin_threshold": 0.12,
     # Exige ou non que la bougie hebdomadaire soit dans le meme sens que l'entree.
-    "require_weekly_alignment": True,
+    "require_weekly_alignment": False,
     # Bonus directionnel apporte par l'alignement de la bougie hebdomadaire.
     "weekly_alignment_weight": 0.60,
     # Marge structurelle minimale pour que l'overlay confirme, veto ou inverse un signal amont.
     "rule_margin_threshold": 0.36,
     # Poids du decideur de structure dans la fusion finale avec le signal de base.
-    "overlay_weight": 0.90,
+    "overlay_weight": 1.0,
     # Taille minimale du corps d'une bougie (vs range) pour compter comme vraie confirmation haussiere/baissiere.
-    "confirmation_body_ratio": 0.38,
+    "confirmation_body_ratio": 0.68,
     # Taille maximale du corps (vs range) pour classer une bougie en doji.
     "doji_body_ratio": 0.18,
     # Autorise le decideur de structure a creer une entree meme si le signal amont est neutre.
@@ -100,6 +103,32 @@ def _clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def _normalize_protective_level_source(value: Any) -> str:
+    normalized = str(value or "structure_level").strip().lower()
+    if normalized in {"recent_swing", "swing", "recent_reversal", "latest_reversal"}:
+        return "recent_swing"
+    return "structure_level"
+
+
+def _select_protective_level(
+    structural_level: dict[str, Any] | None,
+    recent_swing: dict[str, Any] | None,
+    config: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str | None]:
+    preferred_source = _normalize_protective_level_source(config.get("protective_level_source"))
+    if preferred_source == "recent_swing":
+        if recent_swing is not None:
+            return recent_swing, "recent_swing"
+        if structural_level is not None:
+            return structural_level, "structure_level"
+    else:
+        if structural_level is not None:
+            return structural_level, "structure_level"
+        if recent_swing is not None:
+            return recent_swing, "recent_swing"
+    return None, None
+
+
 def resolve_structure_rules(config: dict[str, Any] | None) -> dict[str, Any]:
     # Les parametres *_atr sont des multiples d'ATR. `level_merge_min_points` est le plancher
     # absolu du clustering en points instrument, utile quand on veut resserrer les niveaux.
@@ -111,7 +140,7 @@ def resolve_structure_rules(config: dict[str, Any] | None) -> dict[str, Any]:
     merged["pivot_window"] = max(2, int(merged.get("pivot_window", 3)))
     merged["level_lookback_bars"] = max(60, int(merged.get("level_lookback_bars", 2000)))
     merged["max_levels_per_side"] = max(1, int(merged.get("max_levels_per_side", 3)))
-    merged["level_merge_atr_ratio"] = max(0.03, float(merged.get("level_merge_atr_ratio", 0.12)))
+    merged["level_merge_atr_ratio"] = max(0.0001, float(merged.get("level_merge_atr_ratio", 0.0001)))
     merged["level_merge_min_points"] = max(1.0, float(merged.get("level_merge_min_points", 8.0)))
     merged["near_level_atr"] = max(0.15, float(merged.get("near_level_atr", 0.65)))
     merged["entry_distance_atr"] = max(0.10, float(merged.get("entry_distance_atr", 0.45)))
@@ -120,12 +149,13 @@ def resolve_structure_rules(config: dict[str, Any] | None) -> dict[str, Any]:
     merged["breakout_retest_tolerance_atr"] = max(0.0, float(merged.get("breakout_retest_tolerance_atr", 0.20)))
     merged["breakout_max_extension_atr"] = max(0.2, float(merged.get("breakout_max_extension_atr", 0.85)))
     merged["min_level_quality"] = _clamp(float(merged.get("min_level_quality", 0.62)), 0.0, 1.0)
-    merged["min_level_touches"] = max(2, int(merged.get("min_level_touches", 3)))
+    merged["min_level_touches"] = max(1, int(merged.get("min_level_touches", 1)))
     merged["pattern_confidence_threshold"] = _clamp(float(merged.get("pattern_confidence_threshold", 0.65)), 0.0, 1.0)
     merged["directional_bias_threshold"] = _clamp(float(merged.get("directional_bias_threshold", 0.18)), 0.0, 1.0)
     merged["min_entry_quality"] = _clamp(float(merged.get("min_entry_quality", 0.65)), 0.0, 1.0)
     merged["min_breakout_quality"] = _clamp(float(merged.get("min_breakout_quality", 0.75)), 0.0, 1.0)
     merged["min_rr_ratio"] = max(0.5, float(merged.get("min_rr_ratio", 1.25)))
+    merged["protective_level_source"] = _normalize_protective_level_source(merged.get("protective_level_source", "structure_level"))
     merged["min_target_distance_atr"] = max(0.0, float(merged.get("min_target_distance_atr", 0.70)))
     merged["decision_margin_threshold"] = _clamp(float(merged.get("decision_margin_threshold", 0.12)), 0.0, 1.0)
     merged["require_weekly_alignment"] = bool(merged.get("require_weekly_alignment", True))
@@ -205,12 +235,14 @@ def _empty_analysis(current_price: float, atr: float) -> dict[str, Any]:
     }
 
 
-def _rolling_atr(frame: pd.DataFrame, point_size: float) -> float:
+def _rolling_atr(frame: pd.DataFrame, point_size: float, atr_window: int) -> float:
     ranges = (frame["high"].astype(float) - frame["low"].astype(float)).clip(lower=0.0)
     if ranges.empty:
         return max(point_size * 8.0, 1e-9)
-    atr_series = ranges.rolling(14).mean()
-    atr = float(atr_series.iloc[-1]) if not atr_series.empty and pd.notna(atr_series.iloc[-1]) else float(ranges.mean())
+    # L'ATR structurel doit refleter la volatilite de toute la fenetre d'analyse, pas seulement 14 bougies.
+    effective_window = max(1, min(int(atr_window), len(ranges)))
+    atr_series = ranges.rolling(effective_window).mean()
+    atr = float(atr_series.iloc[-1]) if not atr_series.empty and pd.notna(atr_series.iloc[-1]) else float(ranges.tail(effective_window).mean())
     median_range = float(ranges.median()) if len(ranges) else 0.0
     return max(atr, median_range, point_size * 8.0, 1e-9)
 
@@ -279,6 +311,89 @@ def _collect_swings(frame: pd.DataFrame, pivot_window: int, atr: float) -> list[
     return _normalize_swings(swings)
 
 
+def collect_structure_swings(
+    candles: pd.DataFrame,
+    point_size: float,
+    config: dict[str, Any] | None = None,
+    kind: str | None = None,
+) -> list[dict[str, Any]]:
+    rules = resolve_structure_rules(config)
+    if candles is None or candles.empty:
+        return []
+
+    lookback = max(int(rules["level_lookback_bars"]), 500)
+    frame = candles.copy().sort_values("time").tail(lookback).reset_index(drop=True)
+    if len(frame) < 30:
+        return []
+
+    frame["time"] = pd.to_datetime(frame["time"])
+    atr = _rolling_atr(frame, point_size, int(rules["level_lookback_bars"]))
+    swings = _collect_swings(frame, int(rules["pivot_window"]), atr)
+    if kind is None:
+        return [dict(item) for item in swings]
+
+    normalized_kind = str(kind).strip().lower()
+    return [dict(item) for item in swings if str(item.get("kind")) == normalized_kind]
+
+
+def merge_structure_reversal_swings(
+    bid_candles: pd.DataFrame,
+    ask_candles: pd.DataFrame,
+    point_size: float,
+    config: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    shared_swings = [
+        {**swing, "source": "bid"}
+        for swing in collect_structure_swings(
+            candles=bid_candles,
+            point_size=point_size,
+            config=config,
+            kind="low",
+        )
+    ]
+    shared_swings.extend(
+        {**swing, "source": "ask"}
+        for swing in collect_structure_swings(
+            candles=ask_candles,
+            point_size=point_size,
+            config=config,
+            kind="high",
+        )
+    )
+    return _normalize_swings(shared_swings)
+
+
+def _latest_swing_level(
+    swings: list[dict[str, Any]],
+    kind: str,
+    current_price: float,
+    atr: float,
+    prefer_below_price: bool,
+) -> dict[str, Any] | None:
+    candidates = [item for item in swings if str(item.get("kind")) == kind]
+    if not candidates:
+        return None
+
+    if prefer_below_price:
+        price_aligned = [item for item in candidates if float(item["price"]) <= current_price]
+    else:
+        price_aligned = [item for item in candidates if float(item["price"]) >= current_price]
+    selected_pool = price_aligned or candidates
+
+    latest = max(selected_pool, key=lambda item: int(item["index"]))
+    strength = float(latest.get("strength", 0.0))
+    quality = _clamp(strength / 3.0, 0.0, 1.0)
+    return {
+        "side": "swing",
+        "kind": kind,
+        "price": float(latest["price"]),
+        "quality": float(quality),
+        "avg_strength": float(strength),
+        "latest_index": int(latest["index"]),
+        "distance_atr": abs(current_price - float(latest["price"])) / max(atr, 1e-9),
+    }
+
+
 def _build_level_summary(cluster: dict[str, Any], current_price: float, atr: float, tolerance: float, max_age: int) -> dict[str, Any]:
     prices = [float(item["price"]) for item in cluster["points"]]
     strengths = [float(item["strength"]) for item in cluster["points"]]
@@ -343,10 +458,81 @@ def _cluster_levels(swings: list[dict[str, Any]], current_price: float, atr: flo
     return levels
 
 
+def build_structure_levels(
+    level_swings: list[dict[str, Any]] | None,
+    current_price: float,
+    atr: float,
+    point_size: float,
+    config: dict[str, Any] | None = None,
+    max_age: int | None = None,
+) -> list[dict[str, Any]]:
+    rules = resolve_structure_rules(config)
+    normalized_swings = _normalize_swings(
+        [dict(item) for item in (level_swings or []) if isinstance(item, dict)]
+    )
+    if len(normalized_swings) < 4:
+        return []
+
+    effective_max_age = max(
+        int(max_age if max_age is not None else 0),
+        max(int(item["index"]) for item in normalized_swings),
+    )
+    effective_atr = max(float(atr), point_size, 1e-9)
+    tolerance = max(
+        float(rules["level_merge_atr_ratio"]) * effective_atr,
+        point_size * float(rules["level_merge_min_points"]),
+    )
+    return _filter_trade_levels(
+        _cluster_levels(normalized_swings, current_price, effective_atr, tolerance, effective_max_age),
+        int(rules["min_level_touches"]),
+        float(rules["min_level_quality"]),
+    )
+
+
+def build_shared_structure_levels(
+    bid_candles: pd.DataFrame,
+    ask_candles: pd.DataFrame,
+    point_size: float,
+    config: dict[str, Any] | None = None,
+    level_swings: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    rules = resolve_structure_rules(config)
+    if bid_candles is None or bid_candles.empty or ask_candles is None or ask_candles.empty:
+        return []
+
+    lookback = max(int(rules["level_lookback_bars"]), 500)
+    bid_frame = bid_candles.copy().sort_values("time").tail(lookback).reset_index(drop=True)
+    ask_frame = ask_candles.copy().sort_values("time").tail(lookback).reset_index(drop=True)
+    if len(bid_frame) < 30 or len(ask_frame) < 30:
+        return []
+
+    bid_frame["time"] = pd.to_datetime(bid_frame["time"])
+    ask_frame["time"] = pd.to_datetime(ask_frame["time"])
+    shared_current_price = (float(bid_frame["close"].iloc[-1]) + float(ask_frame["close"].iloc[-1])) / 2.0
+    bid_atr = _rolling_atr(bid_frame, point_size, int(rules["level_lookback_bars"]))
+    ask_atr = _rolling_atr(ask_frame, point_size, int(rules["level_lookback_bars"]))
+    shared_atr = max((bid_atr + ask_atr) / 2.0, point_size, 1e-9)
+    shared_swings = level_swings or merge_structure_reversal_swings(
+        bid_candles=bid_frame,
+        ask_candles=ask_frame,
+        point_size=point_size,
+        config=rules,
+    )
+    return build_structure_levels(
+        level_swings=shared_swings,
+        current_price=shared_current_price,
+        atr=shared_atr,
+        point_size=point_size,
+        config=rules,
+        max_age=min(len(bid_frame), len(ask_frame)) - 1,
+    )
+
+
 def _project_trade_levels(
     structure_levels: list[dict[str, Any]],
     current_price: float,
     tolerance: float,
+    atr: float,
     max_levels: int,
     side: str,
 ) -> list[dict[str, Any]]:
@@ -354,6 +540,13 @@ def _project_trade_levels(
         selected = [level for level in structure_levels if float(level["price"]) <= current_price + tolerance]
     else:
         selected = [level for level in structure_levels if float(level["price"]) >= current_price - tolerance]
+    selected = [
+        {
+            **level,
+            "distance_atr": abs(current_price - float(level["price"])) / max(atr, 1e-9),
+        }
+        for level in selected
+    ]
     selected.sort(key=_level_rank, reverse=True)
     return [{**level, "side": side} for level in selected[:max_levels]]
 
@@ -759,6 +952,7 @@ def _evaluate_buy_entry(
     floor_support: dict[str, Any] | None,
     broken_resistance: dict[str, Any] | None,
     upside_resistance: dict[str, Any] | None,
+    last_swing_low: dict[str, Any] | None,
     config: dict[str, Any],
 ) -> dict[str, Any]:
     entry_distance_atr = float(config["entry_distance_atr"])
@@ -773,9 +967,9 @@ def _evaluate_buy_entry(
 
     best_quality = 0.0
     best_style: str | None = None
+    structural_level: dict[str, Any] | None = None
     reasons: list[str] = []
     blockers: list[str] = []
-    protective_level = floor_support
     target_level = upside_resistance
     candle_confirm = float(candle["bullish_confirmation"])
     if candle_confirm <= 0.0:
@@ -791,6 +985,7 @@ def _evaluate_buy_entry(
             if bounce_quality >= min_entry_quality:
                 best_quality = float(bounce_quality)
                 best_style = "support_bounce"
+                structural_level = floor_support
                 reasons.append("support_entry")
 
     if broken_resistance is not None:
@@ -810,9 +1005,10 @@ def _evaluate_buy_entry(
             if breakout_quality > best_quality and breakout_quality >= min_breakout_quality:
                 best_quality = float(breakout_quality)
                 best_style = "resistance_breakout_retest" if retest else "resistance_breakout"
-                protective_level = broken_resistance if floor_support is None or float(broken_resistance["price"]) > float(floor_support["price"]) else floor_support
+                structural_level = broken_resistance
                 reasons.append("breakout_entry")
 
+    protective_level, protective_level_source = _select_protective_level(structural_level, last_swing_low, config)
     rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr("buy", current_price, atr, protective_level, target_level)
     protective_distance_atr = (
         max(current_price - float(protective_level["price"]), 0.0) / max(atr, 1e-9)
@@ -820,7 +1016,7 @@ def _evaluate_buy_entry(
         else 0.0
     )
     if protective_level is None:
-        blockers.append("no_support_level")
+        blockers.append("no_low_swing_stop")
     if target_level is not None and target_distance_atr < min_target_distance_atr:
         blockers.append("resistance_too_close")
     rr_ok = rr_ratio >= min_rr_ratio
@@ -836,6 +1032,7 @@ def _evaluate_buy_entry(
         "protective_distance_atr": float(protective_distance_atr),
         "protective_level_price": float(protective_level["price"]) if protective_level is not None else None,
         "protective_level_quality": float(protective_level.get("quality", 0.0)) if protective_level is not None else 0.0,
+        "protective_level_source": protective_level_source,
         "target_distance_atr": float(target_distance_atr),
         "reasons": reasons,
         "blockers": blockers,
@@ -850,6 +1047,7 @@ def _evaluate_sell_entry(
     ceiling_resistance: dict[str, Any] | None,
     broken_support: dict[str, Any] | None,
     downside_support: dict[str, Any] | None,
+    last_swing_high: dict[str, Any] | None,
     config: dict[str, Any],
 ) -> dict[str, Any]:
     entry_distance_atr = float(config["entry_distance_atr"])
@@ -864,9 +1062,9 @@ def _evaluate_sell_entry(
 
     best_quality = 0.0
     best_style: str | None = None
+    structural_level: dict[str, Any] | None = None
     reasons: list[str] = []
     blockers: list[str] = []
-    protective_level = ceiling_resistance
     target_level = downside_support
     candle_confirm = float(candle["bearish_confirmation"])
     if candle_confirm <= 0.0:
@@ -882,6 +1080,7 @@ def _evaluate_sell_entry(
             if rejection_quality >= min_entry_quality:
                 best_quality = float(rejection_quality)
                 best_style = "resistance_rejection"
+                structural_level = ceiling_resistance
                 reasons.append("resistance_entry")
 
     if broken_support is not None:
@@ -901,12 +1100,10 @@ def _evaluate_sell_entry(
             if breakdown_quality > best_quality and breakdown_quality >= min_breakout_quality:
                 best_quality = float(breakdown_quality)
                 best_style = "support_breakdown_retest" if retest else "support_breakdown"
-                if ceiling_resistance is None:
-                    protective_level = broken_support
-                elif float(broken_support["price"]) < float(ceiling_resistance["price"]):
-                    protective_level = broken_support
+                structural_level = broken_support
                 reasons.append("breakdown_entry")
 
+    protective_level, protective_level_source = _select_protective_level(structural_level, last_swing_high, config)
     rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr("sell", current_price, atr, protective_level, target_level)
     protective_distance_atr = (
         max(float(protective_level["price"]) - current_price, 0.0) / max(atr, 1e-9)
@@ -914,7 +1111,7 @@ def _evaluate_sell_entry(
         else 0.0
     )
     if protective_level is None:
-        blockers.append("no_resistance_level")
+        blockers.append("no_high_swing_stop")
     if target_level is not None and target_distance_atr < min_target_distance_atr:
         blockers.append("support_too_close")
     rr_ok = rr_ratio >= min_rr_ratio
@@ -930,6 +1127,7 @@ def _evaluate_sell_entry(
         "protective_distance_atr": float(protective_distance_atr),
         "protective_level_price": float(protective_level["price"]) if protective_level is not None else None,
         "protective_level_quality": float(protective_level.get("quality", 0.0)) if protective_level is not None else 0.0,
+        "protective_level_source": protective_level_source,
         "target_distance_atr": float(target_distance_atr),
         "reasons": reasons,
         "blockers": blockers,
@@ -1098,6 +1296,8 @@ def analyze_market_structure(
     candles: pd.DataFrame,
     point_size: float,
     config: dict[str, Any] | None = None,
+    level_swings: list[dict[str, Any]] | None = None,
+    structure_levels: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     rules = resolve_structure_rules(config)
     if candles is None or candles.empty:
@@ -1111,10 +1311,33 @@ def analyze_market_structure(
 
     frame["time"] = pd.to_datetime(frame["time"])
     current_price = float(frame["close"].iloc[-1])
-    atr = _rolling_atr(frame, point_size)
+    atr = _rolling_atr(frame, point_size, int(rules["level_lookback_bars"]))
     swings = _collect_swings(frame, int(rules["pivot_window"]), atr)
+    if level_swings is None:
+        level_swings = swings
+    else:
+        level_swings = _normalize_swings(
+            [
+                dict(item)
+                for item in level_swings
+                if isinstance(item, dict) and 0 <= int(item.get("index", -1)) < len(frame)
+            ]
+        )
     if len(swings) < 4:
         return _empty_analysis(current_price, atr)
+    if structure_levels is None:
+        if len(level_swings) < 4:
+            level_swings = swings
+        structure_levels = build_structure_levels(
+            level_swings=level_swings,
+            current_price=current_price,
+            atr=atr,
+            point_size=point_size,
+            config=rules,
+            max_age=len(frame) - 1,
+        )
+    else:
+        structure_levels = [dict(level) for level in structure_levels if isinstance(level, dict)]
 
     # Largeur effective d'un cluster de niveau. Pour resserrer les supports/resistances, diminuer
     # d'abord `level_merge_atr_ratio`, puis `level_merge_min_points` si le plancher en points bloque.
@@ -1122,15 +1345,11 @@ def analyze_market_structure(
         float(rules["level_merge_atr_ratio"]) * atr,
         point_size * float(rules["level_merge_min_points"]),
     )
-    structure_levels = _filter_trade_levels(
-        _cluster_levels(swings, current_price, atr, tolerance, len(frame) - 1),
-        int(rules["min_level_touches"]),
-        float(rules["min_level_quality"]),
-    )
     support_levels = _project_trade_levels(
         structure_levels,
         current_price,
         tolerance,
+        atr,
         int(rules["max_levels_per_side"]),
         "support",
     )
@@ -1138,6 +1357,7 @@ def analyze_market_structure(
         structure_levels,
         current_price,
         tolerance,
+        atr,
         int(rules["max_levels_per_side"]),
         "resistance",
     )
@@ -1149,6 +1369,8 @@ def analyze_market_structure(
     ceiling_resistance = _closest_level_above(resistance_levels, current_price) or nearest_resistance
     broken_resistance = _closest_level_below(resistance_levels, current_price)
     broken_support = _closest_level_above(support_levels, current_price)
+    last_swing_low = _latest_swing_level(swings, "low", current_price, atr, prefer_below_price=True)
+    last_swing_high = _latest_swing_level(swings, "high", current_price, atr, prefer_below_price=False)
     trend = _detect_trend(frame, swings, atr)
     daily_frame = _aggregate_candles_by_timeframe(frame, "D")
     weekly_frame = _aggregate_candles_by_timeframe(frame, "W")
@@ -1159,8 +1381,8 @@ def analyze_market_structure(
     candle = _candle_context(frame, atr, rules)
     buy_direction = _evaluate_direction_setup("buy", trend, active_pattern, daily_bias, weekly_bias, rules)
     sell_direction = _evaluate_direction_setup("sell", trend, active_pattern, daily_bias, weekly_bias, rules)
-    buy_entry = _evaluate_buy_entry(current_price, atr, candle, floor_support, broken_resistance, ceiling_resistance, rules)
-    sell_entry = _evaluate_sell_entry(current_price, atr, candle, ceiling_resistance, broken_support, floor_support, rules)
+    buy_entry = _evaluate_buy_entry(current_price, atr, candle, floor_support, broken_resistance, ceiling_resistance, last_swing_low, rules)
+    sell_entry = _evaluate_sell_entry(current_price, atr, candle, ceiling_resistance, broken_support, floor_support, last_swing_high, rules)
     buy_setup = _build_side_setup(buy_direction, buy_entry)
     sell_setup = _build_side_setup(sell_direction, sell_entry)
     combined = _combine_rule_and_entry(rule_bias, buy_setup, sell_setup)
@@ -1184,6 +1406,8 @@ def analyze_market_structure(
         "resistance": resistance,
         "nearest_support": nearest_support,
         "nearest_resistance": nearest_resistance,
+        "last_swing_low": last_swing_low,
+        "last_swing_high": last_swing_high,
         "support_levels": support_levels,
         "resistance_levels": resistance_levels,
         "patterns": patterns,
@@ -1327,8 +1551,16 @@ def decide_market_structure(
     candles: pd.DataFrame,
     point_size: float,
     config: dict[str, Any] | None = None,
+    level_swings: list[dict[str, Any]] | None = None,
+    structure_levels: list[dict[str, Any]] | None = None,
 ) -> tuple[StructureDecision | None, dict[str, Any]]:
-    analysis = analyze_market_structure(candles=candles, point_size=point_size, config=config)
+    analysis = analyze_market_structure(
+        candles=candles,
+        point_size=point_size,
+        config=config,
+        level_swings=level_swings,
+        structure_levels=structure_levels,
+    )
     return build_structure_decision(analysis), analysis
 
 

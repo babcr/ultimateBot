@@ -3,33 +3,50 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Optional
 
+from ultimateBot.backtester.config.backtest_config import DEFAULT_CANDLE_INTERVAL, normalize_candle_interval, VolatilityConfig
 from ultimateBot.backtester.data.tick import Tick
-from ultimateBot.backtester.market.candle_builder import Candle, CandleBuilder
+from ultimateBot.backtester.market.candle_builder import Candle, CandleBuilder, PriceSource, normalize_price_source
 
 
 _FIAT_CODES = {"AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"}
 
+DEFAULT_VOLATILITY_CONFIG = VolatilityConfig()
 
 class MarketState:
-    def __init__(self, candle_interval: timedelta = timedelta(hours=1), candle_lookback: int = 1000):
+    def __init__(self, candle_interval: timedelta = DEFAULT_CANDLE_INTERVAL, candle_lookback: int = DEFAULT_VOLATILITY_CONFIG.candle_lookback):
         self.last_ticks: dict[str, Tick] = {}
-        self._candle_builder = CandleBuilder(
-            candle_interval=candle_interval,
-            lookback_candles=candle_lookback,
-        )
+        normalized_interval = normalize_candle_interval(candle_interval, default=DEFAULT_CANDLE_INTERVAL)
+        self._candle_builders: dict[str, CandleBuilder] = {
+            "mid": CandleBuilder(
+                candle_interval=normalized_interval,
+                lookback_candles=candle_lookback,
+                price_source="mid",
+            ),
+            "bid": CandleBuilder(
+                candle_interval=normalized_interval,
+                lookback_candles=candle_lookback,
+                price_source="bid",
+            ),
+            "ask": CandleBuilder(
+                candle_interval=normalized_interval,
+                lookback_candles=candle_lookback,
+                price_source="ask",
+            ),
+        }
         self._point_sizes: dict[str, float] = {}
 
     def update(self, tick: Tick):
         self.last_ticks[tick.symbol] = tick
-        self._candle_builder.update(tick)
+        for candle_builder in self._candle_builders.values():
+            candle_builder.update(tick)
         mid_price = 0.5 * (tick.bid + tick.ask)
         self._point_sizes[tick.symbol] = self._infer_point_size(tick.symbol, mid_price)
 
     def get_tick(self, symbol: str) -> Optional[Tick]:
         return self.last_ticks.get(symbol)
 
-    def get_candles(self, symbol: str, include_active: bool = False) -> list[Candle]:
-        return self._candle_builder.get_candles(symbol, include_active=include_active)
+    def get_candles(self, symbol: str, include_active: bool = False, price_source: PriceSource = "mid") -> list[Candle]:
+        return self._get_candle_builder(price_source).get_candles(symbol, include_active=include_active)
 
     def get_point_size(self, symbol: str) -> float:
         cached = self._point_sizes.get(symbol)
@@ -46,7 +63,11 @@ class MarketState:
         return point_size
 
     def finalize(self) -> None:
-        self._candle_builder.finalize_active_candles()
+        for candle_builder in self._candle_builders.values():
+            candle_builder.finalize_active_candles()
+
+    def _get_candle_builder(self, price_source: PriceSource) -> CandleBuilder:
+        return self._candle_builders[normalize_price_source(price_source)]
 
     def _infer_point_size(self, symbol: str, reference_price: float) -> float:
         base = symbol[:3]

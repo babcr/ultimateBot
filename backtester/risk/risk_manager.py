@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from math import ceil, floor, isfinite
 from typing import Optional
 
@@ -8,6 +9,7 @@ from ultimateBot.backtester.config.backtest_config import (
     RiskConfig,
     SUPPORTED_CAPITAL_SOURCES,
     VolatilityConfig,
+    normalize_candle_interval,
 )
 from ultimateBot.backtester.data.tick import Tick
 from ultimateBot.backtester.market.candle_builder import CandleBuilder
@@ -59,6 +61,7 @@ class RiskManager:
         limit_spread_ratio: float = DEFAULT_RISK_CONFIG.limit_spread_ratio,
         max_spread_ratio: float = DEFAULT_RISK_CONFIG.max_spread_ratio,
         fixed_quantity: Optional[float] = None,
+        candle_interval: timedelta = DEFAULT_VOLATILITY_CONFIG.candle_interval,
         candle_lookback: int = DEFAULT_VOLATILITY_CONFIG.candle_lookback,
         minimum_candles: int = DEFAULT_VOLATILITY_CONFIG.minimum_candles,
         granularity_factor: float = DEFAULT_VOLATILITY_CONFIG.granularity_factor,
@@ -78,6 +81,7 @@ class RiskManager:
             limit_spread_ratio: Seuil où un market bascule en limit.
             max_spread_ratio: Seuil au-delà duquel le trade est rejeté.
             fixed_quantity: Taille imposée; sinon sizing par budget de risque.
+            candle_interval: Période de bougie utilisée pour mesurer la volatilité.
             candle_lookback: Nombre de bougies conservées pour la vol.
             minimum_candles: Minimum de bougies avant toute décision.
             granularity_factor: Facteur de discrétisation du scale.
@@ -126,6 +130,10 @@ class RiskManager:
         )
         # Normalise la lecture de volatilité dérivée des bougies reconstruites.
         self.volatility_config = VolatilityConfig(
+            candle_interval=normalize_candle_interval(
+                candle_interval,
+                default=DEFAULT_VOLATILITY_CONFIG.candle_interval,
+            ),
             candle_lookback=max(1, int(candle_lookback)),
             minimum_candles=max(1, int(minimum_candles)),
             granularity_factor=max(1.0, float(granularity_factor)),

@@ -10,9 +10,12 @@ from itertools import product
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
-
-from ultimateBot.backtester.config.backtest_config import RiskConfig, VolatilityConfig
+from ultimateBot.backtester.config.backtest_config import (
+    RiskConfig,
+    VolatilityConfig,
+    format_backtest_bound,
+    resolve_backtest_bounds,
+)
 from ultimateBot.backtester.data.batcher import TickBatch
 from ultimateBot.backtester.strategy.structure_decision_engine import resolve_structure_rules
 from ultimateBot.backtester.strategy.structure_strategy import StructureStrategy
@@ -22,6 +25,8 @@ from ultimateBot.run_backtest import BASE_HISTORY_PATH, build_engine, build_feed
 
 DEFAULT_RISK_CONFIG = RiskConfig()
 DEFAULT_VOLATILITY_CONFIG = VolatilityConfig()
+DEFAULT_START_YEAR = 2024
+DEFAULT_END_YEAR = 2024
 
 QUICK_SWEEP_PROFILE: dict[str, list[Any]] = {
     "level_lookback_bars": [500, 1000, 2000],
@@ -99,47 +104,71 @@ class DiagnosticStructureStrategy(StructureStrategy):
         self.sell_setup_ok_count = 0
 
     def on_market_data(self, batch: TickBatch, context: StrategyContext):
-        closed_candles = context.market_state.get_candles(batch.symbol, include_active=False)
-        if len(closed_candles) < self.minimum_candles:
+        circuit_candles = self._get_structure_candles(batch.symbol, context)
+        if circuit_candles is None:
             return []
 
-        latest_closed = closed_candles[-1]
+        latest_closed = circuit_candles["bid"][-1]
         if self._last_closed_candle.get(batch.symbol) == latest_closed.start_time:
             return []
         self._last_closed_candle[batch.symbol] = latest_closed.start_time
 
-        candle_frame = pd.DataFrame(
-            {
-                "time": candle.start_time,
-                "open": candle.open_price,
-                "high": candle.high_price,
-                "low": candle.low_price,
-                "close": candle.close_price,
-            }
-            for candle in closed_candles
-        )
         point_size = max(context.market_state.get_point_size(batch.symbol), 1e-9)
-        from ultimateBot.backtester.strategy.structure_decision_engine import decide_market_structure
+        circuit_results = self._analyze_structure_circuits(circuit_candles, point_size)
 
-        decision, analysis = decide_market_structure(
-            candles=candle_frame,
-            point_size=point_size,
-            config=self.structure_rules,
+        selected_source, selected_decision = self._select_converged_decision(
+            bid_analysis=circuit_results["bid"][1],
+            ask_analysis=circuit_results["ask"][1],
+            bid_decision=circuit_results["bid"][0],
+            ask_decision=circuit_results["ask"][0],
         )
-        self._record_analysis(analysis, decision)
-        if decision is None:
+        self._record_window(
+            analyses=[analysis for _decision, analysis in circuit_results.values()],
+            selected_decision=selected_decision,
+            selected_analysis=circuit_results[selected_source][1] if selected_source is not None else None,
+        )
+        if selected_decision is None:
             return []
 
-        side = self._side_from_decision(decision.side)
-        self.signal_side_counts[decision.side] += 1
+        protective_level_price, protective_level_quality = self._resolve_risk_manager_protection(
+            side=selected_decision.side,
+            bid_analysis=circuit_results["bid"][1],
+            ask_analysis=circuit_results["ask"][1],
+            fallback_decision=selected_decision,
+        )
+        self.signal_side_counts[selected_decision.side] += 1
         return [
-            self._build_signal(batch=batch, side=side, decision=decision)
+            self._build_signal(
+                batch=batch,
+                decision=selected_decision,
+                protective_level_price=protective_level_price,
+                protective_level_quality=protective_level_quality,
+            )
         ]
 
-    def _record_analysis(self, analysis: dict[str, Any], decision: Any) -> None:
+    def _record_window(
+        self,
+        analyses: list[dict[str, Any]],
+        selected_decision: Any,
+        selected_analysis: dict[str, Any] | None,
+    ) -> None:
         self.analysis_windows += 1
-        signal_label = {0: "sell", 1: "flat", 2: "buy"}.get(int(analysis.get("rule_signal", 1)), "flat")
-        self.rule_signal_counts[signal_label] += 1
+        if selected_decision is None:
+            self.rule_signal_counts["flat"] += 1
+        else:
+            self.rule_signal_counts[str(selected_decision.side)] += 1
+            self.decision_windows += 1
+
+        if selected_analysis is not None:
+            self._record_analysis_details(selected_analysis)
+            return
+
+        for analysis in analyses:
+            self._record_analysis_details(analysis)
+
+    def _record_analysis_details(self, analysis: dict[str, Any]) -> None:
+        if not analysis:
+            return
 
         buy_setup = analysis.get("buy_setup") or {}
         sell_setup = analysis.get("sell_setup") or {}
@@ -159,26 +188,6 @@ class DiagnosticStructureStrategy(StructureStrategy):
             self.buy_setup_ok_count += 1
         if bool(sell_setup.get("setup_ok", False)):
             self.sell_setup_ok_count += 1
-        if decision is not None:
-            self.decision_windows += 1
-
-    def _side_from_decision(self, side: str):
-        from ultimateBot.backtester.strategy.signal import SignalSide
-
-        return SignalSide.BUY if side == "buy" else SignalSide.SELL
-
-    def _build_signal(self, batch: TickBatch, side: Any, decision: Any):
-        from ultimateBot.backtester.strategy.signal import Signal
-
-        return Signal(
-            symbol=batch.symbol,
-            timestamp=batch.ticks[-1].timestamp,
-            side=side,
-            confidence=decision.confidence,
-            entry_mode=self._entry_mode_for_style(decision.entry_style),
-            protective_level_price=decision.protective_level_price,
-            protective_level_quality=decision.protective_level_quality,
-        )
 
     def diagnostics(self) -> dict[str, Any]:
         return {
@@ -202,8 +211,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--history", type=Path, default=BASE_HISTORY_PATH, help="Path to the historical tick data directory")
     parser.add_argument("--symbols", type=str, nargs="+", default=["EURUSD"], help="Symbols to include in the backtest")
-    parser.add_argument("--start-year", type=int, default=2024, help="Start year for the sweep backtests")
-    parser.add_argument("--end-year", type=int, default=2024, help="End year for the sweep backtests")
+    parser.add_argument("--start-date", type=str, default=None, help="Inclusive start date for the sweep backtests in YYYY-MM-DD format")
+    parser.add_argument("--end-date", type=str, default=None, help="Inclusive end date for the sweep backtests in YYYY-MM-DD format")
+    parser.add_argument("--start-year", type=int, default=None, help="Fallback inclusive start year when --start-date is not provided")
+    parser.add_argument("--end-year", type=int, default=None, help="Fallback inclusive end year when --end-date is not provided")
     parser.add_argument("--balance", type=float, default=50.0, help="Initial balance for each backtest run")
     parser.add_argument("--batch-size", type=int, default=500, help="Fallback tick batch size used by non-time-based strategies")
     parser.add_argument("--quantity", type=float, default=None, help="Optional fixed quantity override")
@@ -230,7 +241,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-results", type=int, default=10, help="How many ranked runs to print")
     parser.add_argument("--rule", action="append", default=[], metavar="KEY=VALUE", help="Base structure-rule override applied before the sweep; can be repeated")
     parser.add_argument("--output", type=Path, default=None, help="Optional path to write the full sweep results as JSON")
-    return parser.parse_args()
+    args = parser.parse_args()
+    try:
+        args.start_date, args.end_date = resolve_backtest_bounds(
+            start_date=args.start_date,
+            end_date=args.end_date,
+            start_year=args.start_year,
+            end_year=args.end_year,
+            default_start_year=DEFAULT_START_YEAR,
+            default_end_year=DEFAULT_END_YEAR,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    return args
 
 
 def parse_rule_overrides(items: list[str]) -> dict[str, Any]:
@@ -284,8 +307,8 @@ def build_runtime_args(args: argparse.Namespace) -> argparse.Namespace:
     return argparse.Namespace(
         history=args.history,
         symbols=list(args.symbols),
-        start_year=args.start_year,
-        end_year=args.end_year,
+        start_date=args.start_date,
+        end_date=args.end_date,
         balance=args.balance,
         batch_size=args.batch_size,
         strategy="structure",
@@ -309,7 +332,7 @@ def build_runtime_args(args: argparse.Namespace) -> argparse.Namespace:
 
 def run_structure_backtest(runtime_args: argparse.Namespace, label: str, phase: str, overrides: dict[str, Any]) -> SweepResult:
     strategy = DiagnosticStructureStrategy(structure_rules=overrides)
-    feed = build_feed(runtime_args.history, runtime_args.symbols, runtime_args.start_year, runtime_args.end_year)
+    feed = build_feed(runtime_args.history, runtime_args.symbols, runtime_args.start_date, runtime_args.end_date)
     engine = build_engine(feed=feed, args=runtime_args, strategy_override=strategy)
 
     started_at = time.perf_counter()
@@ -515,7 +538,7 @@ def main() -> None:
 
     print("Starting structure-rule sweep")
     print(f"Symbols: {runtime_args.symbols}")
-    print(f"Years: {runtime_args.start_year}-{runtime_args.end_year}")
+    print(f"Window: {format_backtest_bound(runtime_args.start_date)} -> {format_backtest_bound(runtime_args.end_date)}")
     print(f"Mode: {args.mode}")
     print(f"Profile: {args.profile}")
     if args.parameter:

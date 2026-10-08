@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterator
 import warnings
@@ -26,11 +26,16 @@ def _warn_skipped_lines(file_path: Path, count: int, first_line_number: int | No
 class JForexTickSource(TickSource):
     """Tick source that reads tick data from a JForex file."""
 
-    def __init__(self, base_path: Path, symbol: str, start_year: int | None = None, end_year: int | None = None):
+    def __init__(self, base_path: Path, symbol: str, start_date: date | None = None, end_date: date | None = None):
         self.base_path = Path(base_path)
         self.symbol = symbol
-        self.start_year = start_year
-        self.end_year = end_year
+        self.start_date = start_date
+        self.end_date = end_date
+        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
+            raise ValueError(
+                f"Invalid tick-source date bounds for {self.symbol}: "
+                f"{self.start_date.isoformat()} > {self.end_date.isoformat()}"
+            )
 
     @property
     def symbol_path(self) -> Path:
@@ -64,15 +69,29 @@ class JForexTickSource(TickSource):
                 year = int(year_path.name)
             except ValueError:
                 continue
-            if self.start_year is not None and year < self.start_year:
+            if self.start_date is not None and year < self.start_date.year:
                 continue
-            if self.end_year is not None and year > self.end_year:
+            if self.end_date is not None and year > self.end_date.year:
                 continue
             for month_path in sorted(year_path.iterdir()):
                 if not month_path.is_dir():
                     continue
                 for file_path in sorted(month_path.glob("*.tsv")):
+                    file_date = self._parse_file_date(file_path)
+                    if file_date is None:
+                        continue
+                    if self.start_date is not None and file_date < self.start_date:
+                        continue
+                    if self.end_date is not None and file_date > self.end_date:
+                        continue
                     yield file_path
+
+    @staticmethod
+    def _parse_file_date(file_path: Path) -> date | None:
+        try:
+            return date.fromisoformat(file_path.stem)
+        except ValueError:
+            return None
 
     def __iter_file(self, file_path: Path) -> Iterator[Tick]:
         malformed_count = 0

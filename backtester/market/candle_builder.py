@@ -3,9 +3,20 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 from ultimateBot.backtester.data.tick import Tick
+
+
+PriceSource = Literal["mid", "bid", "ask"]
+_VALID_PRICE_SOURCES = frozenset({"mid", "bid", "ask"})
+
+
+def normalize_price_source(value: str | None, default: PriceSource = "mid") -> PriceSource:
+	normalized = str(value or default).strip().lower()
+	if normalized in _VALID_PRICE_SOURCES:
+		return normalized
+	return default
 
 
 @dataclass
@@ -30,9 +41,10 @@ class CandleStats:
 
 
 class CandleBuilder:
-	def __init__(self, candle_interval: timedelta, lookback_candles: int):
+	def __init__(self, candle_interval: timedelta, lookback_candles: int, price_source: PriceSource = "mid"):
 		self.candle_interval = candle_interval
 		self.lookback_candles = max(1, int(lookback_candles))
+		self.price_source = normalize_price_source(price_source)
 		self._active: dict[str, Candle] = {}
 		self._closed: dict[str, deque[Candle]] = defaultdict(
 			lambda: deque(maxlen=self.lookback_candles)
@@ -40,7 +52,7 @@ class CandleBuilder:
 
 	def update(self, tick: Tick) -> None:
 		bucket_start = self._bucket_start(tick.timestamp)
-		price = 0.5 * (tick.bid + tick.ask)
+		price = self._price_from_tick(tick)
 
 		candle = self._active.get(tick.symbol)
 		if candle is None or candle.start_time != bucket_start:
@@ -92,3 +104,10 @@ class CandleBuilder:
 		epoch = int(normalized.timestamp())
 		bucket_epoch = epoch - (epoch % interval_seconds)
 		return datetime.fromtimestamp(bucket_epoch, tz=normalized.tzinfo)
+
+	def _price_from_tick(self, tick: Tick) -> float:
+		if self.price_source == "bid":
+			return float(tick.bid)
+		if self.price_source == "ask":
+			return float(tick.ask)
+		return 0.5 * (tick.bid + tick.ask)
