@@ -16,6 +16,7 @@ class TradeMonitor:
          unrealized_pnl = (exit_price - position.entry_price) * position.quantity
       else:
          unrealized_pnl = (position.entry_price - exit_price) * position.quantity
+      unrealized_pnl *= position.profit_multiplier
 
       position.max_favorable_pnl = max(position.max_favorable_pnl, unrealized_pnl)
       position.max_adverse_pnl = min(position.max_adverse_pnl, unrealized_pnl)
@@ -36,7 +37,9 @@ class TradeMonitor:
                trade_id=position.trade_id,
                timestamp=tick.timestamp,
                price=exit_price,
-               reason=CloseReason.STOP_LOSS,
+               reason=(CloseReason.TRAILING_STOP
+                       if position.trailing_stop_state is not None and position.trailing_stop_state.active
+                       else CloseReason.STOP_LOSS),
             )
          if position.take_profit is not None and exit_price >= position.take_profit:
             return CloseRequest(
@@ -53,7 +56,9 @@ class TradeMonitor:
                trade_id=position.trade_id,
                timestamp=tick.timestamp,
                price=exit_price,
-               reason=CloseReason.STOP_LOSS,
+               reason=(CloseReason.TRAILING_STOP
+                       if position.trailing_stop_state is not None and position.trailing_stop_state.active
+                       else CloseReason.STOP_LOSS),
             )
          if position.take_profit is not None and exit_price <= position.take_profit:
             return CloseRequest(

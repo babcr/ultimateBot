@@ -1,25 +1,28 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from math import ceil, floor, isfinite
-from typing import Optional
+from typing import Callable, Optional
 
 from ultimateBot.backtester.config.backtest_config import (
     RiskConfig,
     SUPPORTED_CAPITAL_SOURCES,
     VolatilityConfig,
     normalize_candle_interval,
+    resolve_trailing_start_rr_ratio,
 )
 from ultimateBot.backtester.data.tick import Tick
 from ultimateBot.backtester.market.candle_builder import CandleBuilder
 from ultimateBot.backtester.orders.order import OrderSide, OrderType
 from ultimateBot.backtester.portfolio.portfolio import Portfolio
 from ultimateBot.backtester.strategy.signal import Signal, SignalEntryMode, SignalSide
+from ultimateBot.backtester.risk.instrument_rules import InstrumentRules
 
 
 DEFAULT_RISK_CONFIG = RiskConfig()
 DEFAULT_VOLATILITY_CONFIG = VolatilityConfig()
+_FIAT_CODES = frozenset({"AUD", "CAD", "CHF", "EUR", "GBP", "JPY", "NZD", "USD"})
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,9 @@ class RiskEvaluation:
     raw_spread: float
     spread_ratio: float
     entry_offset: float
+    trailing_stop_activation_price: float | None = None
+    profit_multiplier: float = 1.0
+    account_currency: str = "engine_price_quantity"
 
 
 class RiskManager:
@@ -67,12 +73,17 @@ class RiskManager:
         granularity_factor: float = DEFAULT_VOLATILITY_CONFIG.granularity_factor,
         loss_shrink_ratio: float = DEFAULT_VOLATILITY_CONFIG.loss_shrink_ratio,
         offset_shrink_ratio: float = DEFAULT_VOLATILITY_CONFIG.offset_shrink_ratio,
+        medium_point_spread_normalization_factor: float = DEFAULT_VOLATILITY_CONFIG.medium_point_spread_normalization_factor,
+        large_point_spread_normalization_factor: float = DEFAULT_VOLATILITY_CONFIG.large_point_spread_normalization_factor,
         volatility_mode: str = DEFAULT_VOLATILITY_CONFIG.mode,
+        risk_percent_provider: Callable[[str], float] | None = None,
+        trailing_start_rr_ratio: float | None = DEFAULT_RISK_CONFIG.trailing_start_rr_ratio,
+        instrument_rules_provider: Callable[[str], InstrumentRules] | None = None,
     ):
         """Configure le sizing, les filtres de spread et la lecture de volatilité.
 
         Args:
-            risk_per_trade: Pourcentage du capital risqué par trade.
+            risk_per_trade: Pourcentage du capital risqué par trade (0.1 signifie 0.1 %).
             max_positions: Nombre max de positions simultanées.
             available_money_ratio: Part de la source de capital rendue risquable.
             available_money_source: Source de capital: equity, balance ou free_margin.
@@ -87,9 +98,21 @@ class RiskManager:
             granularity_factor: Facteur de discrétisation du scale.
             loss_shrink_ratio: Réduit la distance de stop issue des bougies.
             offset_shrink_ratio: Réduit l'écart d'entrée des ordres pendants.
+            medium_point_spread_normalization_factor: Multiplie le dénominateur
+                du spread ratio pour les instruments non-FX à point moyen.
+            large_point_spread_normalization_factor: Multiplie le dénominateur
+                du spread ratio pour les instruments non-FX à gros point.
             volatility_mode: swing arrondit au-dessus, intraday au-dessous.
+            risk_percent_provider: Risque courant propre au symbole; le risque
+                fixe configuré est utilisé lorsqu'aucun fournisseur n'est donné.
+            trailing_start_rr_ratio: Seuil de départ du trailing en multiples
+                de la distance du SL prévu; None utilise la moitié du RR du TP.
         """
         # Normalise la politique de risque et les garde-fous d'exposition.
+        effective_reward_risk_ratio = max(
+            0.1, self._normalize_non_negative(reward_risk_ratio, default=DEFAULT_RISK_CONFIG.reward_risk_ratio),
+        )
+        effective_trailing_start = resolve_trailing_start_rr_ratio(effective_reward_risk_ratio, trailing_start_rr_ratio)
         self.risk_config = RiskConfig(
             risk_per_trade_percent=self._normalize_percent(
                 risk_per_trade,
@@ -104,13 +127,8 @@ class RiskManager:
                 accepted_risk_overrun,
                 default=DEFAULT_RISK_CONFIG.accepted_risk_overrun,
             ),
-            reward_risk_ratio=max(
-                0.1,
-                self._normalize_non_negative(
-                    reward_risk_ratio,
-                    default=DEFAULT_RISK_CONFIG.reward_risk_ratio,
-                ),
-            ),
+            reward_risk_ratio=effective_reward_risk_ratio,
+            trailing_start_rr_ratio=effective_trailing_start,
             limit_spread_ratio=max(
                 0.0,
                 self._normalize_non_negative(
@@ -139,12 +157,28 @@ class RiskManager:
             granularity_factor=max(1.0, float(granularity_factor)),
             loss_shrink_ratio=max(1e-9, float(loss_shrink_ratio)),
             offset_shrink_ratio=max(0.0, float(offset_shrink_ratio)),
+            medium_point_spread_normalization_factor=max(
+                1.0,
+                self._normalize_non_negative(
+                    medium_point_spread_normalization_factor,
+                    default=DEFAULT_VOLATILITY_CONFIG.medium_point_spread_normalization_factor,
+                ),
+            ),
+            large_point_spread_normalization_factor=max(
+                1.0,
+                self._normalize_non_negative(
+                    large_point_spread_normalization_factor,
+                    default=DEFAULT_VOLATILITY_CONFIG.large_point_spread_normalization_factor,
+                ),
+            ),
             mode=volatility_mode if volatility_mode in {"swing", "intraday"} else DEFAULT_VOLATILITY_CONFIG.mode,
         )
         self.candle_builder = CandleBuilder(
             candle_interval=self.volatility_config.candle_interval,
             lookback_candles=self.volatility_config.candle_lookback,
         )
+        self.risk_percent_provider = risk_percent_provider
+        self.instrument_rules_provider = instrument_rules_provider
 
     def on_tick(self, tick: Tick) -> None:
         """Alimente l'historique de volatilité avec chaque tick."""
@@ -163,21 +197,20 @@ class RiskManager:
             signal: Intention de trade et mode d'entrée demandé.
             portfolio: Etat courant du compte et des positions.
             tick: Bid/ask courant servant au placement.
-            pending_orders_for_symbol: Empêche les doublons d'ordres en attente.
+            pending_orders_for_symbol: Conservé pour compatibilité; les ordres
+                en attente ne bloquent pas les nouvelles opportunités.
         """
         # Garde-fous structurels avant tout calcul de placement.
         if signal.side == SignalSide.HOLD:
             return None
         if len(portfolio.positions) >= self.risk_config.max_positions:
             return None
-        if pending_orders_for_symbol > 0 or portfolio.has_open_position(signal.symbol):
-            return None
-
         side = OrderSide.BUY if signal.side == SignalSide.BUY else OrderSide.SELL
         raw_spread = max(0.0, tick.ask - tick.bid)
+        reference_price = max(0.5 * (tick.bid + tick.ask), 0.0)
 
         # Résume la vol récente en distances directement exploitables.
-        volatility = self._get_volatility_snapshot(signal.symbol, raw_spread)
+        volatility = self._get_volatility_snapshot(signal.symbol, raw_spread, reference_price)
         if volatility is None:
             return None
         if volatility.spread_ratio > self.risk_config.max_spread_ratio:
@@ -190,6 +223,9 @@ class RiskManager:
             tick=tick,
             volatility=volatility,
         )
+        terms = self.instrument_rules_provider(signal.symbol) if self.instrument_rules_provider else None
+        if terms is not None:
+            placement = replace(placement, take_profit=terms.target_price(placement.take_profit, side == OrderSide.BUY))
         if placement.entry_price <= 0.0:
             return None
         if placement.stop_loss <= 0.0 or placement.take_profit <= 0.0:
@@ -200,12 +236,19 @@ class RiskManager:
         if available_capital <= 0.0:
             return None
 
+        risk_limit_percent = self.risk_percent_for_symbol(signal.symbol)
         quantity, risk_percent = self._resolve_quantity(
             available_capital=available_capital,
-            stop_distance=placement.stop_distance,
+            stop_distance=placement.stop_distance * (terms.account_profit_multiplier if terms else 1.0),
+            risk_limit_percent=risk_limit_percent,
         )
         if quantity <= 0.0:
             return None
+        if terms is not None:
+            quantity = terms.quantity(quantity, fixed=self.risk_config.fixed_quantity is not None)
+            if quantity <= 0:
+                return None
+            risk_percent = 100.0 * placement.stop_distance * terms.account_profit_multiplier * quantity / available_capital
 
         return RiskEvaluation(
             side=side,
@@ -223,9 +266,21 @@ class RiskManager:
             raw_spread=raw_spread,
             spread_ratio=volatility.spread_ratio,
             entry_offset=volatility.entry_offset,
+            trailing_stop_activation_price=(
+                placement.entry_price
+                + (1.0 if side == OrderSide.BUY else -1.0)
+                * self.risk_config.trailing_start_rr_ratio * placement.stop_distance
+            ),
+            profit_multiplier=terms.account_profit_multiplier if terms else 1.0,
+            account_currency=terms.account_currency if terms else "engine_price_quantity",
         )
 
-    def _get_volatility_snapshot(self, symbol: str, raw_spread: float) -> Optional[_VolatilitySnapshot]:
+    def _get_volatility_snapshot(
+        self,
+        symbol: str,
+        raw_spread: float,
+        reference_price: float,
+    ) -> Optional[_VolatilitySnapshot]:
         """Convertit les bougies récentes en stop, TP et offset d'entrée."""
         stats = self.candle_builder.get_stats(symbol)
         if stats is None or stats.sample_size < self.volatility_config.minimum_candles:
@@ -257,7 +312,9 @@ class RiskManager:
         if loss_distance <= 0.0:
             return None
 
-        spread_ratio = raw_spread / loss_distance if loss_distance > 0.0 else float("inf")
+        spread_normalization_factor = self._spread_normalization_factor(symbol, reference_price)
+        normalized_loss_distance = loss_distance * spread_normalization_factor
+        spread_ratio = raw_spread / normalized_loss_distance if normalized_loss_distance > 0.0 else float("inf")
         return _VolatilitySnapshot(
             stop_distance=loss_distance,
             take_profit_distance=take_profit_distance,
@@ -265,6 +322,35 @@ class RiskManager:
             spread_ratio=spread_ratio,
             raw_spread=raw_spread,
         )
+
+    def _spread_normalization_factor(self, symbol: str, reference_price: float) -> float:
+        normalized_symbol = str(symbol or "").strip().upper()
+        base = normalized_symbol[:3]
+        quote = normalized_symbol[3:]
+        if len(normalized_symbol) == 6 and base in _FIAT_CODES and quote in _FIAT_CODES:
+            return 1.0
+
+        point_size = self._infer_point_size(normalized_symbol, reference_price)
+        if point_size >= 0.1:
+            return self.volatility_config.large_point_spread_normalization_factor
+        if point_size >= 0.01:
+            return self.volatility_config.medium_point_spread_normalization_factor
+        return 1.0
+
+    def _infer_point_size(self, symbol: str, reference_price: float) -> float:
+        base = symbol[:3]
+        quote = symbol[3:]
+        if len(symbol) == 6 and base in _FIAT_CODES and quote in _FIAT_CODES:
+            return 0.001 if symbol.endswith("JPY") else 0.00001
+
+        reference = max(float(reference_price), 0.0)
+        if reference >= 1000.0:
+            return 0.1
+        if reference >= 100.0:
+            return 0.01
+        if reference >= 10.0:
+            return 0.001
+        return 0.0001
 
     def _build_order_plan(
         self,
@@ -385,7 +471,9 @@ class RiskManager:
             raw_spread=raw_spread,
         )
         if structure_stop_distance is None:
-            return base_stop_distance
+            terms = self.instrument_rules_provider(signal.symbol) if self.instrument_rules_provider else None
+            return (terms.stop_distance(entry_price, base_stop_distance, 0.0, side == OrderSide.BUY)
+                    if terms else base_stop_distance)
         return structure_stop_distance
 
     def _resolve_structure_stop_distance(
@@ -414,14 +502,33 @@ class RiskManager:
         )
         buffer = max(base_stop_distance * buffer_ratio, raw_spread)
         min_stop_distance = max(base_stop_distance * self._STRUCTURE_MIN_STOP_RATIO, raw_spread * 2.0)
-        return max(protective_distance + buffer, min_stop_distance)
+        extra_buffer = self._normalize_non_negative(signal.protective_stop_buffer, default=0.0)
+        base = max(protective_distance + buffer, min_stop_distance)
+        terms = self.instrument_rules_provider(signal.symbol) if self.instrument_rules_provider else None
+        return terms.stop_distance(entry_price, base, extra_buffer, side == OrderSide.BUY) if terms else base + extra_buffer
 
     def _get_available_capital(self, portfolio: Portfolio) -> float:
         """Retourne la fraction de capital autorisée pour le risque."""
         source_value = portfolio.get_capital_source(self.risk_config.available_money_source)
         return max(0.0, source_value * self.risk_config.available_money_ratio)
 
-    def _resolve_quantity(self, available_capital: float, stop_distance: float) -> tuple[float, float]:
+    def risk_percent_for_symbol(self, symbol: str) -> float:
+        if self.risk_percent_provider is None:
+            return self.risk_config.risk_per_trade_percent
+        try:
+            provided = float(self.risk_percent_provider(symbol))
+        except (TypeError, ValueError):
+            return 0.0
+        if not isfinite(provided) or provided <= 0.0:
+            return 0.0
+        return min(self.risk_config.risk_per_trade_percent, provided)
+
+    def _resolve_quantity(
+        self,
+        available_capital: float,
+        stop_distance: float,
+        risk_limit_percent: float,
+    ) -> tuple[float, float]:
         """Convertit budget de risque et distance de stop en quantité."""
         if stop_distance <= 0.0 or available_capital <= 0.0:
             return 0.0, 0.0
@@ -429,11 +536,11 @@ class RiskManager:
         if self.risk_config.fixed_quantity is not None:
             quantity = self.risk_config.fixed_quantity
             risk_percent = 100.0 * stop_distance * quantity / available_capital
-            if risk_percent - self.risk_config.risk_per_trade_percent > self.risk_config.accepted_risk_overrun:
+            if risk_percent - risk_limit_percent > self.risk_config.accepted_risk_overrun:
                 return 0.0, 0.0
             return quantity, risk_percent
 
-        risk_budget = available_capital * self.risk_config.risk_per_trade_percent / 100.0
+        risk_budget = available_capital * risk_limit_percent / 100.0
         quantity = risk_budget / stop_distance
         if quantity <= 0.0:
             return 0.0, 0.0
@@ -447,14 +554,13 @@ class RiskManager:
         return normalized
 
     def _normalize_percent(self, value: float, default: float) -> float:
+        """Conserve les pourcentages positifs, y compris les valeurs sous 1 %."""
         try:
             numeric_value = float(value)
         except (TypeError, ValueError):
             return default
         if not isfinite(numeric_value) or numeric_value <= 0.0:
             return default
-        if numeric_value < 1.0:
-            return numeric_value * 100.0
         return numeric_value
 
     def _normalize_ratio(self, value: float, default: float) -> float:

@@ -5,11 +5,12 @@ from typing import Any
 
 import pandas as pd
 
-from ultimateBot.backtester.config.backtest_config import DEFAULT_CANDLE_INTERVAL, normalize_candle_interval
+from ultimateBot.backtester.config.backtest_config import DEFAULT_CANDLE_INTERVAL
 from ultimateBot.backtester.data.batcher import TickBatch
 from ultimateBot.backtester.market.candle_builder import Candle, PriceSource
+from ultimateBot.backtester.market.market_state import MarketState
 from ultimateBot.backtester.strategy.signal import Signal, SignalEntryMode, SignalSide
-from ultimateBot.backtester.strategy.strategy import Strategy
+from ultimateBot.backtester.strategy.swing_strategy import SwingStrategy, STRUCTURE_PRICE_SOURCES
 from ultimateBot.backtester.strategy.strategy_context import StrategyContext
 from ultimateBot.backtester.strategy.structure_decision_engine import (
     LIMIT_ENTRY_STYLES,
@@ -17,16 +18,14 @@ from ultimateBot.backtester.strategy.structure_decision_engine import (
     StructureDecision,
     build_shared_structure_levels,
     decide_market_structure,
-    merge_structure_reversal_swings,
     resolve_structure_rules,
 )
 
 
-STRUCTURE_PRICE_SOURCES: tuple[PriceSource, PriceSource] = ("bid", "ask")
-
-
-class StructureStrategy(Strategy):
+class StructureStrategy(SwingStrategy):
     """Strategy that emits signals from the shared market-structure engine only."""
+
+    minimum_lookback_bars = 60
 
     def __init__(
         self,
@@ -34,13 +33,11 @@ class StructureStrategy(Strategy):
         minimum_candles: int | None = None,
         analysis_interval: timedelta = DEFAULT_CANDLE_INTERVAL,
     ):
-        self.analysis_interval = normalize_candle_interval(analysis_interval, default=DEFAULT_CANDLE_INTERVAL)
-        self.structure_rules = resolve_structure_rules(structure_rules)
-        self.minimum_candles = max(
-            30,
-            int(minimum_candles or self.structure_rules["level_lookback_bars"]),
+        super().__init__(
+            structure_rules=resolve_structure_rules(structure_rules),
+            minimum_candles=minimum_candles,
+            analysis_interval=analysis_interval,
         )
-        self._last_closed_candle: dict[str, datetime] = {}
         self._level_count_log_window = 0
 
     def on_market_data(self, batch: TickBatch, context: StrategyContext) -> list[Signal]:
@@ -54,7 +51,10 @@ class StructureStrategy(Strategy):
         self._last_closed_candle[batch.symbol] = latest_closed.start_time
 
         point_size = max(context.market_state.get_point_size(batch.symbol), 1e-9)
-        circuit_results = self._analyze_structure_circuits(circuit_candles, point_size)
+        circuit_results = self._analyze_structure_circuits(
+            circuit_candles, point_size, rules=self.rules_for_symbol(batch.symbol),
+            symbol=batch.symbol, market_state=context.market_state,
+        )
         bid_decision, bid_analysis = circuit_results["bid"]
         ask_decision, ask_analysis = circuit_results["ask"]
         self._maybe_log_level_vector_size(
@@ -89,33 +89,15 @@ class StructureStrategy(Strategy):
             )
         ]
 
-    def _get_structure_candles(self, symbol: str, context: StrategyContext) -> dict[str, list[Candle]] | None:
-        circuit_candles: dict[str, list[Candle]] = {}
-        latest_start: datetime | None = None
-
-        for price_source in STRUCTURE_PRICE_SOURCES:
-            closed_candles = context.market_state.get_candles(
-                symbol,
-                include_active=False,
-                price_source=price_source,
-            )
-            if len(closed_candles) < self.minimum_candles:
-                return None
-
-            current_start = closed_candles[-1].start_time
-            if latest_start is None:
-                latest_start = current_start
-            elif current_start != latest_start:
-                return None
-            circuit_candles[price_source] = closed_candles
-
-        return circuit_candles
-
     def _analyze_structure_circuits(
         self,
         circuit_candles: dict[PriceSource, list[Candle]],
         point_size: float,
+        rules: dict[str, Any] | None = None,
+        symbol: str | None = None,
+        market_state: MarketState | None = None,
     ) -> dict[PriceSource, tuple[StructureDecision | None, dict[str, Any]]]:
+        rules = self.structure_rules if rules is None else rules
         circuit_frames = {
             price_source: self._build_candle_frame(closed_candles)
             for price_source, closed_candles in circuit_candles.items()
@@ -123,13 +105,13 @@ class StructureStrategy(Strategy):
         shared_swings = self._build_shared_structure_swings(
             bid_frame=circuit_frames["bid"],
             ask_frame=circuit_frames["ask"],
-            point_size=point_size,
+            point_size=point_size, rules=rules, symbol=symbol, market_state=market_state,
         )
         shared_levels = build_shared_structure_levels(
             bid_candles=circuit_frames["bid"],
             ask_candles=circuit_frames["ask"],
             point_size=point_size,
-            config=self.structure_rules,
+            config=rules,
             level_swings=shared_swings,
         )
         return {
@@ -138,6 +120,7 @@ class StructureStrategy(Strategy):
                 point_size,
                 level_swings=shared_swings,
                 structure_levels=shared_levels,
+                rules=rules,
             )
             for price_source, candle_frame in circuit_frames.items()
         }
@@ -148,12 +131,14 @@ class StructureStrategy(Strategy):
         point_size: float,
         level_swings: list[dict[str, Any]] | None = None,
         structure_levels: list[dict[str, Any]] | None = None,
+        rules: dict[str, Any] | None = None,
     ) -> tuple[StructureDecision | None, dict[str, Any]]:
         return self._analyze_structure_frame(
             candle_frame=self._build_candle_frame(closed_candles),
             point_size=point_size,
             level_swings=level_swings,
             structure_levels=structure_levels,
+            rules=rules,
         )
 
     def _analyze_structure_frame(
@@ -162,38 +147,14 @@ class StructureStrategy(Strategy):
         point_size: float,
         level_swings: list[dict[str, Any]] | None = None,
         structure_levels: list[dict[str, Any]] | None = None,
+        rules: dict[str, Any] | None = None,
     ) -> tuple[StructureDecision | None, dict[str, Any]]:
         return decide_market_structure(
             candles=candle_frame,
             point_size=point_size,
-            config=self.structure_rules,
+            config=self.structure_rules if rules is None else rules,
             level_swings=level_swings,
             structure_levels=structure_levels,
-        )
-
-    def _build_shared_structure_swings(
-        self,
-        bid_frame: pd.DataFrame,
-        ask_frame: pd.DataFrame,
-        point_size: float,
-    ) -> list[dict[str, Any]]:
-        return merge_structure_reversal_swings(
-            bid_candles=bid_frame,
-            ask_candles=ask_frame,
-            point_size=point_size,
-            config=self.structure_rules,
-        )
-
-    def _build_candle_frame(self, closed_candles: list[Candle]) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "time": candle.start_time,
-                "open": candle.open_price,
-                "high": candle.high_price,
-                "low": candle.low_price,
-                "close": candle.close_price,
-            }
-            for candle in closed_candles
         )
 
     def _maybe_log_level_vector_size(
@@ -309,6 +270,7 @@ class StructureStrategy(Strategy):
             entry_mode=self._entry_mode_for_style(decision.entry_style),
             protective_level_price=protective_level_price,
             protective_level_quality=protective_level_quality,
+            protective_stop_buffer=decision.protective_stop_buffer,
         )
 
     def _signal_side_from_decision(self, side: str) -> SignalSide:

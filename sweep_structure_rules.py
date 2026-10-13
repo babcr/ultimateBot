@@ -114,7 +114,10 @@ class DiagnosticStructureStrategy(StructureStrategy):
         self._last_closed_candle[batch.symbol] = latest_closed.start_time
 
         point_size = max(context.market_state.get_point_size(batch.symbol), 1e-9)
-        circuit_results = self._analyze_structure_circuits(circuit_candles, point_size)
+        circuit_results = self._analyze_structure_circuits(
+            circuit_candles, point_size, rules=self.rules_for_symbol(batch.symbol),
+            symbol=batch.symbol, market_state=context.market_state,
+        )
 
         selected_source, selected_decision = self._select_converged_decision(
             bid_analysis=circuit_results["bid"][1],
@@ -218,7 +221,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--balance", type=float, default=50.0, help="Initial balance for each backtest run")
     parser.add_argument("--batch-size", type=int, default=500, help="Fallback tick batch size used by non-time-based strategies")
     parser.add_argument("--quantity", type=float, default=None, help="Optional fixed quantity override")
-    parser.add_argument("--risk-percent", type=float, default=1.0, help="Risk percentage per trade; 1.0 means 1 percent")
+    parser.add_argument("--risk-percent", type=float, default=1.0, help="Risk percentage per trade; 0.1 means 0.1 percent, 1.0 means 1 percent")
     parser.add_argument("--available-money-ratio", type=float, default=1.0, help="Share of the selected capital source available to the risk budget")
     parser.add_argument("--available-money-source", type=str, default="equity", choices=["equity", "free_margin", "balance"], help="Capital source used for risk sizing")
     parser.add_argument("--accepted-risk-overrun", type=float, default=0.25, help="Maximum allowed overshoot above the configured risk percentage when a fixed quantity is supplied")

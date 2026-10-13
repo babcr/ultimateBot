@@ -24,6 +24,15 @@ class PositionManager:
          entry_price=fill.price,
          stop_loss=order.stop_loss,
          take_profit=order.take_profit,
+         trailing_stop_activation_price=order.trailing_stop_activation_price,
+         trailing_stop_enabled=order.trailing_stop_enabled,
+         strategy_configuration_id=order.strategy_configuration_id,
+         strategy_lookback_bars=order.strategy_lookback_bars,
+         strategy_timeframe_minutes=order.strategy_timeframe_minutes,
+         strategy_use_global_timeframe_validation=order.strategy_use_global_timeframe_validation,
+         learning_record=order.learning_record,
+         profit_multiplier=order.profit_multiplier,
+         account_currency=order.account_currency,
       )
 
       portfolio.positions[trade_id] = position

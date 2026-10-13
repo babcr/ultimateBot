@@ -11,6 +11,7 @@ class CloseReason(Enum):
    END_OF_BACKTEST = auto()
    MANUAL = auto()
    TIMEOUT = auto()
+   TRAILING_STOP = auto()
 
 @dataclass
 class CloseRequest:
@@ -18,3 +19,5 @@ class CloseRequest:
    timestamp: datetime
    price: float
    reason: CloseReason
+   quantity: float | None = None
+   event_id: str | None = None

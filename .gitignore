@@ -3,3 +3,8 @@
 *.tsv
 tmp_history/
 tmp_history_q1/
+artifacts/bandit_memory/
+artifacts/bandit_reports/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

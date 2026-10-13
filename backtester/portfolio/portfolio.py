@@ -1,4 +1,5 @@
 from ultimateBot.backtester.portfolio.position import Position
+from ultimateBot.backtester.orders.order import OrderSide
 
 class Portfolio:
    def __init__(self, initial_balance: float):
@@ -19,7 +20,9 @@ class Portfolio:
       for position in self.positions.values():
          if position.stop_loss is None:
             continue
-         total += abs(position.entry_price - position.stop_loss) * position.quantity
+         loss_distance = (position.entry_price - position.stop_loss if position.side == OrderSide.BUY
+                          else position.stop_loss - position.entry_price)
+         total += max(0.0, loss_distance) * position.quantity * position.profit_multiplier
       return total
 
    @property

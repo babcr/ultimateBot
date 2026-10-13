@@ -10,6 +10,7 @@ from ultimateBot.backtester.data.tick import Tick
 
 if TYPE_CHECKING:
    from ultimateBot.backtester.execution.execution_model import ExecutionModel, ExecutionResult
+   from ultimateBot.backtester.optimization.bandit_core import PositionLearningRecord
 
 class OrderSide(Enum):
    BUY = auto()
@@ -49,6 +50,15 @@ class OrderRequest:
    take_profit: Optional[float] = None
 
    expires_at: Optional[datetime] = None
+   trailing_stop_activation_price: Optional[float] = None
+   trailing_stop_enabled: Optional[bool] = None
+   strategy_configuration_id: Optional[int] = None
+   strategy_lookback_bars: Optional[int] = None
+   strategy_timeframe_minutes: Optional[int] = None
+   strategy_use_global_timeframe_validation: Optional[bool] = None
+   learning_record: PositionLearningRecord | None = None
+   profit_multiplier: float = 1.0
+   account_currency: str = "engine_price_quantity"
 
 
 class PendingOrderQueue:
@@ -122,7 +132,7 @@ class PendingOrderProcessor:
       self.queue = queue
       self.execution_model = execution_model
 
-   def on_tick(self, tick: Tick) -> list[ExecutionResult]:
+   def on_tick(self, tick: Tick, max_fills: int | None = None) -> list[ExecutionResult]:
 
       fills = []
       orders = self.queue.take_for_symbol(tick.symbol)
@@ -136,12 +146,21 @@ class PendingOrderProcessor:
          # 1. Ordres expirés
          # ----------------------------------------
          if order.expires_at is not None and order.expires_at <= tick.timestamp:
-            self.queue.restore_for_symbol(tick.symbol, [order])
+            print(
+               f"[order-expired] order_id={order.order_id} symbol={order.symbol} "
+               f"timestamp={tick.timestamp.isoformat()} side={order.side.name.lower()} "
+               f"order_type={order.order_type.name.lower()} "
+               f"created_at={order.created_at.isoformat()} expires_at={order.expires_at.isoformat()}",
+               flush=True,
+            )
             continue
          # ----------------------------------------
          # 2. Pas encore executable
          # ----------------------------------------
          if order.eligible_at is not None and order.eligible_at > tick.timestamp:
+            still_pending.append(order)
+            continue
+         if max_fills is not None and len(fills) >= max_fills:
             still_pending.append(order)
             continue
          # ----------------------------------------

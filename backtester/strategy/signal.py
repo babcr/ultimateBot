@@ -24,3 +24,4 @@ class Signal:
     entry_mode: SignalEntryMode = SignalEntryMode.MARKET
     protective_level_price: float | None = None
     protective_level_quality: float = 0.0
+    protective_stop_buffer: float = 0.0

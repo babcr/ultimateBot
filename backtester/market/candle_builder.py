@@ -3,9 +3,12 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Literal, Optional
+from itertools import islice
+from math import isfinite
+from typing import Any, Literal, Optional
 
 from ultimateBot.backtester.data.tick import Tick
+from ultimateBot.backtester.market.swing_history import ReversalSwingHistory
 
 
 PriceSource = Literal["mid", "bid", "ask"]
@@ -27,6 +30,10 @@ class Candle:
 	low_price: float
 	close_price: float
 	tick_count: int = 0
+	bid_volume_sum: float = 0.0
+	ask_volume_sum: float = 0.0
+	bid_volume_count: int = 0
+	ask_volume_count: int = 0
 
 	@property
 	def size(self) -> float:
@@ -49,6 +56,8 @@ class CandleBuilder:
 		self._closed: dict[str, deque[Candle]] = defaultdict(
 			lambda: deque(maxlen=self.lookback_candles)
 		)
+		self._swing_histories: dict[str, ReversalSwingHistory] = {}
+		self._candle_counts: dict[str, int] = {}
 
 	def update(self, tick: Tick) -> None:
 		bucket_start = self._bucket_start(tick.timestamp)
@@ -57,7 +66,7 @@ class CandleBuilder:
 		candle = self._active.get(tick.symbol)
 		if candle is None or candle.start_time != bucket_start:
 			if candle is not None:
-				self._closed[tick.symbol].append(candle)
+				self._append_closed_candle(tick.symbol, candle)
 
 			self._active[tick.symbol] = Candle(
 				start_time=bucket_start,
@@ -67,12 +76,22 @@ class CandleBuilder:
 				close_price=price,
 				tick_count=1,
 			)
+			self._add_quote_volumes(self._active[tick.symbol], tick)
 			return
 
 		candle.high_price = max(candle.high_price, price)
 		candle.low_price = min(candle.low_price, price)
 		candle.close_price = price
 		candle.tick_count += 1
+		self._add_quote_volumes(candle, tick)
+
+	@staticmethod
+	def _add_quote_volumes(candle: Candle, tick: Tick) -> None:
+		for side in ("bid", "ask"):
+			value = getattr(tick, f"{side}_volume", None)
+			if value is not None and isfinite(value) and value >= 0:
+				setattr(candle, f"{side}_volume_sum", getattr(candle, f"{side}_volume_sum") + value)
+				setattr(candle, f"{side}_volume_count", getattr(candle, f"{side}_volume_count") + 1)
 
 	def get_stats(self, symbol: str, include_active: bool = True) -> Optional[CandleStats]:
 		candles = self.get_candles(symbol, include_active=include_active)
@@ -87,15 +106,48 @@ class CandleBuilder:
 			average_size=sum(sizes) / len(sizes),
 		)
 
-	def get_candles(self, symbol: str, include_active: bool = True) -> list[Candle]:
-		candles = list(self._closed.get(symbol, ()))
-		if include_active and symbol in self._active:
-			candles.append(self._active[symbol])
+	def get_candles(self, symbol: str, include_active: bool = True, limit: int | None = None) -> list[Candle]:
+		"""Project the newest candles in time order, without copying candle objects."""
+		if limit is not None and limit < 0:
+			raise ValueError("Candle limit must be non-negative")
+		closed = self._closed.get(symbol, ())
+		active = self._active.get(symbol) if include_active else None
+		if limit is None:
+			candles = list(closed)
+		else:
+			closed_limit = max(0, limit - int(active is not None))
+			# Start at the newest end so reading a small window costs O(limit).
+			candles = list(islice(reversed(closed), closed_limit))
+			candles.reverse()
+		if active is not None and (limit is None or limit > 0):
+			candles.append(active)
 		return candles
+
+	def get_reversal_swings(self, symbol: str, atr: float, limit: int | None = None) -> list[dict[str, Any]]:
+		"""Project raw swings from closed candles; the consumer handles normalization."""
+		if limit is not None and limit < 0:
+			raise ValueError("Swing candle limit must be non-negative")
+		closed = self._closed.get(symbol)
+		if not closed:
+			return []
+		history = self._swing_histories.get(symbol)
+		if history is None:
+			history = ReversalSwingHistory(self.lookback_candles)
+			for candle in closed:
+				history.append(candle)
+			self._swing_histories[symbol] = history
+		return history.project(atr, limit=limit)
+
+	def _append_closed_candle(self, symbol: str, candle: Candle) -> None:
+		self._closed[symbol].append(candle)
+		self._candle_counts[symbol] = self._candle_counts.get(symbol, 0) + 1
+		history = self._swing_histories.get(symbol)
+		if history is not None:
+			history.append(candle)
 
 	def finalize_active_candles(self) -> None:
 		for symbol, candle in list(self._active.items()):
-			self._closed[symbol].append(candle)
+			self._append_closed_candle(symbol, candle)
 			del self._active[symbol]
 
 	def _bucket_start(self, timestamp: datetime) -> datetime:

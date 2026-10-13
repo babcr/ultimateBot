@@ -29,6 +29,7 @@ class StructureDecision:
     protective_level_price: float | None
     protective_level_quality: float
     reasons: tuple[str, ...]
+    protective_stop_buffer: float = 0.0
 
 
 DEFAULT_STRUCTURE_RULES = {
@@ -38,33 +39,33 @@ DEFAULT_STRUCTURE_RULES = {
     # donc ce parametre n'influe plus vraiment sur les swings detectes.
     "pivot_window": 3,
     # Nombre de bougies fermees analysees pour extraire swings, tendance, supports et resistances.
-    "level_lookback_bars": 700,
+    "level_lookback_bars": 33,
     # Nombre maximal de niveaux de support et de resistance conserves apres classement.
     "max_levels_per_side": 100,
     # Reglage principal du clustering: deux swings sont fusionnes dans le meme cluster si leur ecart
     # est inferieur ou egal a ATR * ce ratio. Le diminuer rend les niveaux plus nets et plus separes.
-    "level_merge_atr_ratio": 0.001,
+    "level_merge_atr_ratio": 0.08,
     # Plancher absolu du clustering en nombre de points instrument. Meme avec un ATR tres faible,
     # un cluster ne sera pas plus etroit que point_size * cette valeur. Le diminuer aussi si besoin.
     "level_merge_min_points": 2.0,
     # Distance max au prix courant pour qu'un niveau pese encore dans le biais directionnel global.
-    "near_level_atr": 0.1,
+    "near_level_atr": 0.50,
     # Distance max au niveau pour considerer une entree bounce/rejection exploitable.
-    "entry_distance_atr": 0.05,
+    "entry_distance_atr": 0.30,
     # Depassement minimal d'un niveau casse pour reconnaitre un breakout / breakdown valide.
-    "breakout_distance_atr": 0.5,
+    "breakout_distance_atr": .65,
     # Tolere qu'une cloture precedente soit legerement deja au-dessus/en-dessous du niveau casse.
     "breakout_cross_allowance_atr": 0.05,
     # Tolere qu'un retest deborde legerement le niveau casse avant reprise.
     "breakout_retest_tolerance_atr": 0.10,
     # Extension maximale acceptee apres cassure; au-dela on considere qu'on chasse trop le mouvement.
-    "breakout_max_extension_atr": 1.5,
+    "breakout_max_extension_atr": 0.5,
     # Qualite minimale d'un cluster pour qu'il survive comme niveau tradable.
-    "min_level_quality": 0.65,
+    "min_level_quality": 0.5,
     # Nombre minimal de touches/swing-points dans un cluster pour le garder.
-    "min_level_touches": 7,
+    "min_level_touches": 3,
     # Confiance minimale pour laisser un pattern chartiste influencer le biais final.
-    "pattern_confidence_threshold": 0.65,
+    "pattern_confidence_threshold": 0.2,
     # Seuil minimal du score directionnel pour sortir du mode sideways.
     "directional_bias_threshold": 0.2,
     # Qualite minimale pour accepter une entree de type support_bounce / resistance_rejection.
@@ -76,10 +77,12 @@ DEFAULT_STRUCTURE_RULES = {
     # Source prioritaire du niveau protecteur: `structure_level` garde le stop sur le niveau qui porte
     # le setup (support/retest/resistance), `recent_swing` privilegie le dernier retournement local.
     "protective_level_source": "structure_level",
+    # Recul supplementaire du stop, en multiples d'ATR, pour les deux sources de protection.
+    "protective_stop_buffer_atr": 2.5,
     # Distance minimale restante jusqu'a l'objectif structurel pour accepter l'entree.
     "min_target_distance_atr": 0.25,
     # Marge minimale buy-vs-sell pour sortir de l'indecision structurelle pure.
-    "decision_margin_threshold": 0.12,
+    "decision_margin_threshold": 0.62,
     # Exige ou non que la bougie hebdomadaire soit dans le meme sens que l'entree.
     "require_weekly_alignment": False,
     # Bonus directionnel apporte par l'alignement de la bougie hebdomadaire.
@@ -156,6 +159,12 @@ def resolve_structure_rules(config: dict[str, Any] | None) -> dict[str, Any]:
     merged["min_breakout_quality"] = _clamp(float(merged.get("min_breakout_quality", 0.75)), 0.0, 1.0)
     merged["min_rr_ratio"] = max(0.5, float(merged.get("min_rr_ratio", 1.25)))
     merged["protective_level_source"] = _normalize_protective_level_source(merged.get("protective_level_source", "structure_level"))
+    stop_buffer_atr = float(merged.get("protective_stop_buffer_atr", DEFAULT_STRUCTURE_RULES["protective_stop_buffer_atr"]))
+    merged["protective_stop_buffer_atr"] = (
+        max(0.0, stop_buffer_atr)
+        if math.isfinite(stop_buffer_atr)
+        else float(DEFAULT_STRUCTURE_RULES["protective_stop_buffer_atr"])
+    )
     merged["min_target_distance_atr"] = max(0.0, float(merged.get("min_target_distance_atr", 0.70)))
     merged["decision_margin_threshold"] = _clamp(float(merged.get("decision_margin_threshold", 0.12)), 0.0, 1.0)
     merged["require_weekly_alignment"] = bool(merged.get("require_weekly_alignment", True))
@@ -200,6 +209,7 @@ def _empty_analysis(current_price: float, atr: float) -> dict[str, Any]:
             "stop_distance_atr": 0.0,
             "protective_distance_atr": 0.0,
             "protective_level_price": None,
+            "protective_stop_buffer": 0.0,
             "protective_level_quality": 0.0,
             "target_distance_atr": 0.0,
             "reasons": [],
@@ -217,6 +227,7 @@ def _empty_analysis(current_price: float, atr: float) -> dict[str, Any]:
             "stop_distance_atr": 0.0,
             "protective_distance_atr": 0.0,
             "protective_level_price": None,
+            "protective_stop_buffer": 0.0,
             "protective_level_quality": 0.0,
             "target_distance_atr": 0.0,
             "reasons": [],
@@ -267,7 +278,9 @@ def _normalize_swings(swings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return normalized
 
 
-def _collect_swings(frame: pd.DataFrame, pivot_window: int, atr: float) -> list[dict[str, Any]]:
+def _collect_swings(
+    frame: pd.DataFrame, pivot_window: int, atr: float, *, normalize: bool = True,
+) -> list[dict[str, Any]]:
     # Le swing engine actuel detecte un pivot quand une bougie haussiere est suivie d'une baissiere
     # (swing high) ou l'inverse (swing low). `pivot_window` reste uniquement pour compatibilite.
     _ = pivot_window
@@ -308,7 +321,7 @@ def _collect_swings(frame: pd.DataFrame, pivot_window: int, atr: float) -> list[
                 "index": index,
                 "strength": float(pair_strength),
             })
-    return _normalize_swings(swings)
+    return _normalize_swings(swings) if normalize else swings
 
 
 def collect_structure_swings(
@@ -323,7 +336,7 @@ def collect_structure_swings(
 
     lookback = max(int(rules["level_lookback_bars"]), 500)
     frame = candles.copy().sort_values("time").tail(lookback).reset_index(drop=True)
-    if len(frame) < 30:
+    if len(frame) < 2:
         return []
 
     frame["time"] = pd.to_datetime(frame["time"])
@@ -884,6 +897,7 @@ def _estimate_rr(
     atr: float,
     protective_level: dict[str, Any] | None,
     target_level: dict[str, Any] | None,
+    stop_buffer: float = 0.0,
 ) -> tuple[float, float, float]:
     if side == "buy":
         stop_distance = max(current_price - float(protective_level["price"]), atr * 0.35) if protective_level is not None else atr
@@ -893,6 +907,7 @@ def _estimate_rr(
         target_distance = current_price - float(target_level["price"]) if target_level is not None else atr * 2.0
     if target_distance <= 0.0:
         target_distance = atr * 2.0
+    stop_distance += max(float(stop_buffer), 0.0)
     rr_ratio = target_distance / max(stop_distance, 1e-9)
     return float(rr_ratio), float(stop_distance / max(atr, 1e-9)), float(target_distance / max(atr, 1e-9))
 
@@ -1009,7 +1024,10 @@ def _evaluate_buy_entry(
                 reasons.append("breakout_entry")
 
     protective_level, protective_level_source = _select_protective_level(structural_level, last_swing_low, config)
-    rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr("buy", current_price, atr, protective_level, target_level)
+    stop_buffer = atr * float(config["protective_stop_buffer_atr"]) if protective_level is not None else 0.0
+    rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr(
+        "buy", current_price, atr, protective_level, target_level, stop_buffer=stop_buffer,
+    )
     protective_distance_atr = (
         max(current_price - float(protective_level["price"]), 0.0) / max(atr, 1e-9)
         if protective_level is not None
@@ -1033,6 +1051,7 @@ def _evaluate_buy_entry(
         "protective_level_price": float(protective_level["price"]) if protective_level is not None else None,
         "protective_level_quality": float(protective_level.get("quality", 0.0)) if protective_level is not None else 0.0,
         "protective_level_source": protective_level_source,
+        "protective_stop_buffer": float(stop_buffer),
         "target_distance_atr": float(target_distance_atr),
         "reasons": reasons,
         "blockers": blockers,
@@ -1104,7 +1123,10 @@ def _evaluate_sell_entry(
                 reasons.append("breakdown_entry")
 
     protective_level, protective_level_source = _select_protective_level(structural_level, last_swing_high, config)
-    rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr("sell", current_price, atr, protective_level, target_level)
+    stop_buffer = atr * float(config["protective_stop_buffer_atr"]) if protective_level is not None else 0.0
+    rr_ratio, stop_distance_atr, target_distance_atr = _estimate_rr(
+        "sell", current_price, atr, protective_level, target_level, stop_buffer=stop_buffer,
+    )
     protective_distance_atr = (
         max(float(protective_level["price"]) - current_price, 0.0) / max(atr, 1e-9)
         if protective_level is not None
@@ -1128,6 +1150,7 @@ def _evaluate_sell_entry(
         "protective_level_price": float(protective_level["price"]) if protective_level is not None else None,
         "protective_level_quality": float(protective_level.get("quality", 0.0)) if protective_level is not None else 0.0,
         "protective_level_source": protective_level_source,
+        "protective_stop_buffer": float(stop_buffer),
         "target_distance_atr": float(target_distance_atr),
         "reasons": reasons,
         "blockers": blockers,
@@ -1587,6 +1610,7 @@ def _decision_from_setup(side: str, setup: dict[str, Any], analysis: dict[str, A
         protective_level_price=_optional_float(setup.get("protective_level_price")),
         protective_level_quality=float(setup.get("protective_level_quality", 0.0)),
         reasons=reasons,
+        protective_stop_buffer=float(setup.get("protective_stop_buffer", 0.0)),
     )
 
 
