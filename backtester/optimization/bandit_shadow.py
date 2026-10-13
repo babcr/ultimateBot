@@ -47,6 +47,7 @@ class ShadowVariant:
             execution_model=ExecutionModel(), portfolio=portfolio, position_manager=PositionManager(),
             trade_monitor=TradeMonitor(), trade_closer=TradeCloser(action.trailing_enabled),
             reports=ReportCollector(), market_state=main.market_state, learning_hooks=self,
+            trading_schedule=main.trading_schedule.config,
         )
         self.engine.reports.add_trade_event_listener(self.on_trade_event)
         self.pf = RollingTradeProfitFactor(runner.coordinator.config.profit_factor_window)
@@ -59,6 +60,9 @@ class ShadowVariant:
                                              source="shadow", group_id=self.group["group_id"], variant_id=self.variant_id)
 
     def on_order_queued(self, order):
+        self.runner.coordinator.dirty = True
+
+    def on_order_cancelled(self, order):
         self.runner.coordinator.dirty = True
 
     def on_position_open(self, position, tick):
@@ -95,6 +99,7 @@ class ShadowVariant:
                 "pending_orders": len(self.engine.pending_orders_processor.queue),
                 "unrealized_pnl": self.unrealized(tick) if tick else 0.0,
                 "capital_at_risk": portfolio.capital_at_risk,
+                "trading_time_diagnostics": dict(self.engine.trading_schedule.stats),
                 "weight_budget": self.group["budget"], "simulation": "existing bid/ask virtual fill; no market impact"}
 
     def checkpoint(self):

@@ -17,6 +17,7 @@ from ultimateBot.backtester.config.backtest_config import (
    resolve_backtest_bounds,
    resolve_trailing_start_rr_ratio,
 )
+from ultimateBot.backtester.config.trading_schedule import TradingScheduleConfig
 from ultimateBot.backtester.data.batcher import TickBatcher
 from ultimateBot.backtester.data.file_tick_source import JForexTickSource
 from ultimateBot.backtester.data.merged_feed import MergedTickFeed
@@ -164,6 +165,14 @@ def parse_args() -> argparse.Namespace:
       default=format_candle_interval(DEFAULT_VOLATILITY_CONFIG.candle_interval),
       help="Base candle period shared by market-state candles, strategy analysis and risk volatility (examples: 15m, 1h, 4h, 1d)",
    )
+   parser.add_argument("--session-filter", action=argparse.BooleanOptionalAction, default=False,
+                       help="Allow entries only during the first part of London (08:00-16:30 local) or New York (09:30-16:00 local), weekdays, with DST")
+   parser.add_argument("--session-entry-fraction", type=float, default=.75,
+                       help="Fraction of each session after its opening that accepts entries; (0,1], default 0.75")
+   parser.add_argument("--close-friday", action=argparse.BooleanOptionalAction, default=False,
+                       help="Close all positions at/after the Friday cutoff on each symbol's first available tick, cancel pending entries and block new entries until Monday")
+   parser.add_argument("--friday-close-time", default="23:59", help="Friday cutoff HH:MM or HH:MM:SS (default 23:59)")
+   parser.add_argument("--friday-close-timezone", default="UTC", help="IANA timezone for the Friday cutoff (default UTC)")
    parser.add_argument(
       "--level-lookback-bars",
       type=int,
@@ -595,6 +604,7 @@ def parse_args() -> argparse.Namespace:
    args = parser.parse_args()
    try:
       resolve_trailing_start_rr_ratio(args.reward_risk_ratio, args.trailing_start_rr_ratio)
+      resolve_backtest_trading_schedule(args)
       if args.regression_lookback_bars is not None and args.regression_lookback_bars < 2:
          raise ValueError("--regression-lookback-bars must be at least 2")
       resolve_backtest_order_config(args)
@@ -631,6 +641,16 @@ def parse_args() -> argparse.Namespace:
    except ValueError as error:
       parser.error(str(error))
    return args
+
+
+def resolve_backtest_trading_schedule(args: argparse.Namespace) -> TradingScheduleConfig:
+   return TradingScheduleConfig(
+      session_filter=bool(getattr(args, "session_filter", False)),
+      session_entry_fraction=getattr(args, "session_entry_fraction", .75),
+      close_friday=bool(getattr(args, "close_friday", False)),
+      friday_close_time=getattr(args, "friday_close_time", "23:59"),
+      friday_close_timezone=getattr(args, "friday_close_timezone", "UTC"),
+   )
 
 
 def resolve_backtest_order_config(
@@ -890,6 +910,7 @@ def build_engine(
       reports=reports,
       market_state=market_state,
       adaptive_optimizer=adaptive_optimizer,
+      trading_schedule=resolve_backtest_trading_schedule(args),
    )
    if bandit_config is not None:
       if not isinstance(strategy, SwingRegressionStrategy):
@@ -1033,6 +1054,10 @@ def print_backtest_summary(engine: BacktestEngine) -> None:
    print(f"Open positions: {len(portfolio.positions)}")
    pending_orders = getattr(getattr(engine, "pending_orders_processor", None), "queue", ())
    print(f"Pending orders: {len(pending_orders)}")
+   schedule = getattr(engine, "trading_schedule", None)
+   if schedule is not None and schedule.config.enabled:
+      print(f"Trading time rules: {schedule.config.identity()}")
+      print(f"Trading time diagnostics: {schedule.stats}")
 
    if trades:
       wins = [trade for trade in trades if trade.pnl > 0]

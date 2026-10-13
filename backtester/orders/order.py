@@ -100,6 +100,9 @@ class PendingOrderQueue:
    def count_for_symbol(self, symbol: str) -> int:
       return len(self._orders_by_symbol.get(symbol, []))
 
+   def symbols(self) -> tuple[str, ...]:
+      return tuple(self._orders_by_symbol)
+
    def __len__(self) -> int:
       return sum(len(orders) for orders in self._orders_by_symbol.values())
 

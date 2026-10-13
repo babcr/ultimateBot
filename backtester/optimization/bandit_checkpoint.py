@@ -110,7 +110,8 @@ def engine_snapshot(engine):
             "risk_candles": candle_builder_state(engine.risk_manager.candle_builder),
             "batch_buffers": encode(engine.batcher.buffers), "batch_windows": encode(engine.batcher._analysis_windows),
             "trades": encode(engine.reports.trades), "partials": encode(engine.reports._partials),
-            "seen_deals": list(engine.reports._seen_deals)}
+            "seen_deals": list(engine.reports._seen_deals),
+            "market_clock": encode(engine._market_clock), "trading_schedule": engine.trading_schedule.checkpoint()}
 
 
 def restore_engine(engine, state):
@@ -137,3 +138,5 @@ def restore_engine(engine, state):
     engine.reports.trades = decode(state["trades"])
     engine.reports._partials = decode(state["partials"])
     engine.reports._seen_deals = set(state["seen_deals"])
+    engine._market_clock = decode(state.get("market_clock"))
+    engine.trading_schedule.restore(state.get("trading_schedule", {}))

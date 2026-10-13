@@ -23,6 +23,11 @@ une autre identité. Un run sans `--contextual-bandit` n'accède pas au stockage
 bandit. Un run activé peut explorer des actions après les clôtures, même si le
 PF est inférieur à 1,01 : ce nombre n'est pas un filtre du nouvel optimiseur.
 
+`--session-filter` limite les entrées aux premiers 75 % des séances Londres et
+New York. `--close-friday` ajoute la sortie hebdomadaire à 23h59 UTC. Ces règles
+font partie de l'identité quand elles sont activées et s'appliquent aussi aux
+comptes shadow. Voir [les horaires et les limites d'exécution au tick](../monitoring/trading_schedule.md).
+
 | Option | Valeur initiale / comportement |
 | --- | --- |
 | `--bandit-memory` | `ultimateBot/artifacts/bandit_memory/learning.sqlite3`, commun aux modes compatibles |

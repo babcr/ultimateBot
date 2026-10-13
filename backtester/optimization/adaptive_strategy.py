@@ -33,7 +33,7 @@ class AdaptiveStrategyConfig:
     profit_factor_drop_mode: str = "relative"
     min_profit_factor: float = 1.01
     optimization_metric: str = "accuracy"
-    seed: int = 10
+    seed: int = 20
     min_accuracy_percent: float = 23.
     tighten_search_interval: bool = False
     search_long_arm_delta: int = 2

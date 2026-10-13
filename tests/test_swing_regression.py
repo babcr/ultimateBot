@@ -1197,6 +1197,9 @@ class SwingRegressionStrategyTests(unittest.TestCase):
                                         "--regression-score-threshold", "0.15",
                                         "--regression-slope-scale-atr", "0.1",
                                         "--regression-min-parallelism", "0.0",
+                                        "--regression-min-consecutive-swing-distance-atr", "0",
+                                        "--reward-risk-ratio", "1",
+                                        "--structure-stop-buffer-atr", "0.25",
                                         "--regression-max-swing-density", "inf",
                                         "--no-regression-level-reaction",
                                         "--regression-live-analysis"]):

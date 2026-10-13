@@ -97,6 +97,9 @@ class ContextualBanditOptimizer:
             "volume_convention": "available quote volume, valid nonnegative samples, no executed volume",
             "volume_unit_contract": self.volume_contract,
         }
+        time_rules = engine.trading_schedule.config.identity()
+        if time_rules is not None:
+            self.fixed_parameters["trading_time_rules"] = time_rules
         engine.reports.add_trade_event_listener(self.queue_trade)
         for symbol in symbols:
             self.ensure_model(symbol, self.provenance.get("start_date") or "")
@@ -247,6 +250,12 @@ class ContextualBanditOptimizer:
         if record is not None:
             self.store.save_pending(record.decision.model_id, self.run_id, record.trajectory_key, "pending_order", encode(order))
             self.dirty = True
+
+    def on_order_cancelled(self, order):
+        record = order.learning_record
+        if record is not None:
+            self.store.remove_pending(record.decision.model_id, self.run_id, record.trajectory_key)
+        self.dirty = True
 
     def on_position_open(self, position, tick):
         self.position_opened(position, tick)
@@ -447,6 +456,8 @@ class ContextualBanditOptimizer:
                               "scaler_frozen": bundle["state"]["scaler"]["frozen"],
                               "bounds": bundle["space"].domain}
         return {"run_id": self.run_id, "memory": str(self.store.path), "read_only": self.store.read_only,
+                "trading_time_rules": self.engine.trading_schedule.config.identity(),
+                "trading_time_diagnostics": dict(self.engine.trading_schedule.stats),
                 "models": models, "policy_changes": self.change_count, "duplicate_deals": self.duplicate_deals,
                 "rolling_main_profit_factor": self.main_pf.value, "main_drawdown": self.drawdown,
                 "main_pnl_net": self.engine.portfolio.balance - self.engine.portfolio.initial_balance,

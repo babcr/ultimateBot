@@ -1,8 +1,10 @@
 from typing import Iterable
+from ultimateBot.backtester.config.trading_schedule import TradingSchedule, TradingScheduleConfig
 from ultimateBot.backtester.data.batcher import TickBatcher
 from ultimateBot.backtester.data.tick import Tick
 from ultimateBot.backtester.market.market_state import MarketState
 from ultimateBot.backtester.monitoring.trade_monitor import TradeMonitor
+from ultimateBot.backtester.monitoring.close_request import CloseReason, CloseRequest
 from ultimateBot.backtester.orders.order import PendingOrderProcessor, PendingOrderQueue
 from ultimateBot.backtester.orders.order_builder import OrderBuilder
 from ultimateBot.backtester.optimization.adaptive_strategy import AdaptiveStrategyOptimizer
@@ -12,7 +14,7 @@ from ultimateBot.backtester.reports.report_collector import ReportCollector
 from ultimateBot.backtester.reports.trade_report import TradeCloser
 from ultimateBot.backtester.execution.execution_model import ExecutionModel
 from ultimateBot.backtester.risk.risk_manager import RiskManager
-from ultimateBot.backtester.strategy.signal import Signal
+from ultimateBot.backtester.strategy.signal import Signal, SignalSide
 from ultimateBot.backtester.strategy.strategy import Strategy
 from ultimateBot.backtester.strategy.strategy_context import StrategyContext
 
@@ -34,6 +36,7 @@ class BacktestEngine:
       adaptive_optimizer: AdaptiveStrategyOptimizer | None = None,
       contextual_optimizer=None,
       learning_hooks=None,
+      trading_schedule: TradingScheduleConfig | None = None,
    ):
       self.feed = feed
       self.batcher = batcher
@@ -49,6 +52,8 @@ class BacktestEngine:
       self.adaptive_optimizer = adaptive_optimizer
       self.contextual_optimizer = contextual_optimizer
       self.learning_hooks = learning_hooks if learning_hooks is not None else contextual_optimizer
+      self.trading_schedule = TradingSchedule(trading_schedule)
+      self._market_clock = None
       if adaptive_optimizer is not None:
          reports.add_trade_listener(adaptive_optimizer.on_trade_closed)
 
@@ -56,6 +61,7 @@ class BacktestEngine:
       self.pending_orders_processor = PendingOrderProcessor(PendingOrderQueue(), self.execution_model)
 
    def _process_pending_orders(self, tick: Tick) -> None:
+      self._cancel_disallowed_orders(tick)
       available_slots = max(0, self.risk_manager.risk_config.max_positions - len(self.portfolio.positions))
       execution_results = self.pending_orders_processor.on_tick(tick, max_fills=available_slots)
       for result in execution_results:
@@ -67,6 +73,7 @@ class BacktestEngine:
             f" trailing_activation_price={position.trailing_stop_activation_price}"
             if position.trailing_stop_enabled else ""
          )
+
          adaptive_details = (
             f" configuration_id={position.strategy_configuration_id} lookback={position.strategy_lookback_bars} "
             f"timeframe_minutes={position.strategy_timeframe_minutes} "
@@ -83,6 +90,24 @@ class BacktestEngine:
             flush=True,
          )
 
+   def _cancel_disallowed_orders(self, tick: Tick) -> None:
+      if not self.trading_schedule.config.enabled:
+         return
+      queue = self.pending_orders_processor.queue
+      for symbol in queue.symbols():
+         keep = []
+         for order in queue.take_for_symbol(symbol):
+            reason = self.trading_schedule.pending_rejection(order.created_at, tick.timestamp)
+            if reason is None:
+               keep.append(order)
+               continue
+            self.trading_schedule.stats["cancelled_pending_orders"] += 1
+            if self.learning_hooks is not None and hasattr(self.learning_hooks, "on_order_cancelled"):
+               self.learning_hooks.on_order_cancelled(order)
+            print(f"[order-cancelled] order_id={order.order_id} symbol={order.symbol} "
+                  f"timestamp={tick.timestamp.isoformat()} reason={reason}", flush=True)
+         queue.restore_for_symbol(symbol, keep)
+
    def run(self) -> None:
       for tick in self.feed:
          self.on_tick(tick)
@@ -97,6 +122,7 @@ class BacktestEngine:
       optimizer = self.contextual_optimizer
       if optimizer is not None and optimizer.should_skip_replayed_tick(tick):
          return
+      self._market_clock = tick.timestamp
       if update_market:
          self.market_state.update(tick)
       if optimizer is not None:
@@ -121,6 +147,13 @@ class BacktestEngine:
          self._process_signal(signal, batch.ticks[-1])
 
    def _process_signal(self, signal: Signal, tick: Tick) -> None:
+      if signal.side != SignalSide.HOLD:
+         reason = self.trading_schedule.pending_rejection(signal.timestamp, self._market_clock or tick.timestamp)
+         if reason is not None:
+            self.trading_schedule.stats["rejected_signals"] += 1
+            print(f"[signal-rejected] symbol={signal.symbol} timestamp={signal.timestamp.isoformat()} "
+                  f"reason={reason}", flush=True)
+            return
       evaluation = self.risk_manager.evaluate(
          signal=signal,
          portfolio=self.portfolio,
@@ -167,7 +200,13 @@ class BacktestEngine:
    def _monitor_positions(self, tick: Tick) -> None:
       positions = list(self.portfolio.positions.values())
       for position in positions:
-         request = self.trade_closer.check(position, tick, self.trade_monitor)
+         if position.symbol == tick.symbol and self.trading_schedule.position_due(position.opened_at, tick.timestamp):
+            request = CloseRequest(position.trade_id, tick.timestamp,
+                                   tick.bid if position.side.name == "BUY" else tick.ask, CloseReason.END_OF_WEEK)
+            self.trade_monitor._mark_position_excursion(position, request.price)
+            self.trading_schedule.stats["weekly_closed_positions"] += 1
+         else:
+            request = self.trade_closer.check(position, tick, self.trade_monitor)
          if request is None:
             continue
 

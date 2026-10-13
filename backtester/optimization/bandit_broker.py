@@ -27,6 +27,13 @@ class BrokerDeal:
     pnl_gross_account_currency: float | None = None
 
 
+@dataclass(frozen=True)
+class BrokerCloseInstruction:
+    position_id: str
+    timestamp: datetime
+    reason: CloseReason = CloseReason.END_OF_WEEK
+
+
 class BrokerBanditBridge:
     def __init__(self, coordinator, *, account_scope):
         if coordinator.source not in ("live_real", "demo_executed"):
@@ -79,10 +86,22 @@ class BrokerBanditBridge:
         self.coordinator.store.save_pending(frozen.decision.model_id, frozen.run_id, key, "broker_position", data)
         return frozen
 
+    def entry_allowed(self, emitted_at, *, timestamp=None):
+        now = timestamp or self.coordinator.market_clock or emitted_at
+        return self.coordinator.engine.trading_schedule.pending_rejection(emitted_at, now) is None
+
+    def weekly_close_requests(self, timestamp):
+        """Instructions for the host's broker transport/timer; no virtual real fills."""
+        policy = self.coordinator.engine.trading_schedule
+        return [BrokerCloseInstruction(position_id, timestamp) for position_id, data in sorted(self.positions.items())
+                if self.reconciliation.get(position_id) not in ("closed_deals_committed", "awaiting_authoritative_close_deals")
+                and policy.position_due(datetime.fromisoformat(data["opened_at"]), timestamp)]
+
     def on_market_tick(self, tick):
         # Deliberately bypass native pending fills and native trade closure:
         # only broker events may close the principal execution trajectory.
         coordinator = self.coordinator
+        coordinator.engine._market_clock = tick.timestamp
         coordinator.engine.market_state.update(tick)
         coordinator.on_market_tick(tick)
         coordinator.engine.risk_manager.on_tick(tick)
