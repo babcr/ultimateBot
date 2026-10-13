@@ -1,0 +1,22 @@
+{
+  "disabled": {
+    "cpu_ratio_to_disabled": 1.0,
+    "wall_ratio_to_disabled": 1.0,
+    "extra_peak_process_bytes": 0
+  },
+  "initial": {
+    "cpu_ratio_to_disabled": 7.310344827586207,
+    "wall_ratio_to_disabled": 8.036815581892837,
+    "extra_peak_process_bytes": 5767168
+  },
+  "reload": {
+    "cpu_ratio_to_disabled": 7.0344827586206895,
+    "wall_ratio_to_disabled": 7.900778837852025,
+    "extra_peak_process_bytes": 5918720
+  },
+  "max_lookback": {
+    "cpu_ratio_to_disabled": 7.206896551724138,
+    "wall_ratio_to_disabled": 8.271897052310502,
+    "extra_peak_process_bytes": 5582848
+  }
+}

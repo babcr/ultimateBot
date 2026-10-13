@@ -1,0 +1,2 @@
+candidate_label,global_timeframe_multiplier,global_signal_lookback_bars,start_date,end_date,runtime_seconds,final_balance,total_pnl,trade_count,wins,losses,win_rate,profit_factor,avg_pnl,avg_win,avg_loss,stop_loss_closes,take_profit_closes,other_closes,analysis_windows,global_analysis_windows,low_volatility_rejections,global_signal_missing,global_signal_direction_mismatch,global_confirmation_rejections
+g=5_lookback=6,5,6,2020-01-01,2025-12-31,5704.029690199997,50.0,0.0,0,0,0,0.0,0.0,0.0,0.0,0.0,0,0,0,53687,0,13,554,0,554

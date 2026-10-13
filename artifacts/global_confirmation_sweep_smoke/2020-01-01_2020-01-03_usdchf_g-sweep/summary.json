@@ -1,0 +1,98 @@
+{
+  "window": {
+    "start_date": "2020-01-01",
+    "end_date": "2020-01-03"
+  },
+  "template_backtest_args": [
+    "--strategy",
+    "swing-regression",
+    "--symbols",
+    "USDCHF",
+    "--candle-lookback",
+    "150",
+    "--reward-risk-ratio",
+    "3.0",
+    "--level-lookback-bars",
+    "20",
+    "--risk-percent",
+    "1.0",
+    "--structure-stop-source",
+    "structure_level"
+  ],
+  "symbols": [
+    "USDCHF"
+  ],
+  "grid": {
+    "g_grid": [
+      5
+    ],
+    "global_lookback_grid": [
+      1
+    ],
+    "candidate_count": 1
+  },
+  "ranking": {
+    "min_trades": 1,
+    "best_by_pnl": null,
+    "best_by_profit_factor": null,
+    "fewest_stop_losses": null,
+    "top_results": [
+      {
+        "candidate_label": "g=5_lookback=1",
+        "global_timeframe_multiplier": 5,
+        "global_signal_lookback_bars": 1,
+        "start_date": "2020-01-01",
+        "end_date": "2020-01-03",
+        "runtime_seconds": 1.1729420999763533,
+        "final_balance": 50.0,
+        "total_pnl": 0.0,
+        "trade_count": 0,
+        "wins": 0,
+        "losses": 0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "avg_pnl": 0.0,
+        "avg_win": 0.0,
+        "avg_loss": 0.0,
+        "stop_loss_closes": 0,
+        "take_profit_closes": 0,
+        "other_closes": 0,
+        "analysis_windows": 0,
+        "global_analysis_windows": 0,
+        "low_volatility_rejections": 0,
+        "global_signal_missing": 0,
+        "global_signal_direction_mismatch": 0,
+        "global_confirmation_rejections": 0
+      }
+    ]
+  },
+  "all_results": [
+    {
+      "candidate_label": "g=5_lookback=1",
+      "global_timeframe_multiplier": 5,
+      "global_signal_lookback_bars": 1,
+      "start_date": "2020-01-01",
+      "end_date": "2020-01-03",
+      "runtime_seconds": 1.1729420999763533,
+      "final_balance": 50.0,
+      "total_pnl": 0.0,
+      "trade_count": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate": 0.0,
+      "profit_factor": 0.0,
+      "avg_pnl": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0,
+      "stop_loss_closes": 0,
+      "take_profit_closes": 0,
+      "other_closes": 0,
+      "analysis_windows": 0,
+      "global_analysis_windows": 0,
+      "low_volatility_rejections": 0,
+      "global_signal_missing": 0,
+      "global_signal_direction_mismatch": 0,
+      "global_confirmation_rejections": 0
+    }
+  ]
+}

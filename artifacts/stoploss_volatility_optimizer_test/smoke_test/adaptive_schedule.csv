@@ -1,0 +1,2 @@
+start_date,end_date,candidate_label,regression_market_volatility_window_bars,regression_min_market_volatility_ratio,stop_loss_closes,trade_count,total_pnl,baseline_stop_loss_closes,baseline_trade_count,baseline_total_pnl
+2020-01-01,2020-01-10,window=30_threshold=0.000000,30,0.0,0,1,1.5166843618027244,0,1,1.5166843618027244

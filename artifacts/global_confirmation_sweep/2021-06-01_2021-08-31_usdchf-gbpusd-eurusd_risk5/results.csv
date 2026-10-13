@@ -1,0 +1,7 @@
+multiplier,signal_lookback_bars,pnl,closed_trades,wins,losses,win_rate,profit_factor,stop_loss_closes,take_profit_closes,other_closes,analysis_windows,low_volatility_rejections,global_signal_missing,global_signal_direction_mismatch,global_confirmation_rejections,pnl_delta_vs_baseline,trade_delta_vs_baseline,stop_loss_delta_vs_baseline
+1,1,2.460578,23,6,17,0.26087,1.054135,17,6,0,2256,0,0,0,0,0.0,0,0
+2,1,0.0,0,0,0,0.0,0.0,0,0,0,2220,0,23,0,23,-2.460578,-23,-17
+2,2,0.0,0,0,0,0.0,0.0,0,0,0,2220,0,23,0,23,-2.460578,-23,-17
+2,3,0.0,0,0,0,0.0,0.0,0,0,0,2220,0,23,0,23,-2.460578,-23,-17
+3,1,0.0,0,0,0,0.0,0.0,0,0,0,2179,0,23,0,23,-2.460578,-23,-17
+3,2,0.0,0,0,0,0.0,0.0,0,0,0,2179,0,23,0,23,-2.460578,-23,-17

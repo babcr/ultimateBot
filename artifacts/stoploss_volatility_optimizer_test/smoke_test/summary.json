@@ -1,0 +1,113 @@
+{
+  "base_command_tokens": [
+    "--strategy",
+    "swing-regression",
+    "--symbols",
+    "EURUSD",
+    "--start-date",
+    "2020-01-01",
+    "--end-date",
+    "2020-01-10",
+    "--candle-lookback",
+    "150",
+    "--reward-risk-ratio",
+    "3.0",
+    "--level-lookback-bars",
+    "6",
+    "--risk-percent",
+    "1.0",
+    "--structure-stop-source",
+    "structure_level"
+  ],
+  "baseline_full_result": {
+    "candidate_label": "window=30_threshold=0.000000",
+    "candidate": {
+      "regression_market_volatility_window_bars": 30,
+      "regression_min_market_volatility_ratio": 0.0
+    },
+    "start_date": "2020-01-01",
+    "end_date": "2020-01-10",
+    "runtime_seconds": 7.9255854999646544,
+    "total_pnl": 1.5166843618027244,
+    "trade_count": 1,
+    "wins": 1,
+    "losses": 0,
+    "win_rate": 1.0,
+    "profit_factor": Infinity,
+    "stop_loss_closes": 0,
+    "take_profit_closes": 1,
+    "other_closes": 0,
+    "analysis_windows": 81,
+    "low_volatility_rejections": 0,
+    "avg_stop_loss_entry_volatility_ratio": null,
+    "avg_stop_loss_entry_volatility_atr": null,
+    "avg_stop_loss_close_volatility_ratio": null,
+    "avg_stop_loss_close_volatility_atr": null
+  },
+  "worst_stop_loss_periods": [],
+  "evaluation_windows": [
+    {
+      "start_date": "2020-01-01",
+      "end_date": "2020-01-10"
+    }
+  ],
+  "top_static_candidates": [
+    {
+      "candidate_label": "window=30_threshold=0.000000",
+      "candidate": {
+        "regression_market_volatility_window_bars": 30,
+        "regression_min_market_volatility_ratio": 0.0
+      },
+      "windows": 1,
+      "trade_retention_violations": 0,
+      "windows_beating_baseline_stop_losses": 0,
+      "windows_matching_baseline_stop_losses": 1,
+      "total_stop_loss_closes": 0,
+      "baseline_total_stop_loss_closes": 0,
+      "stop_loss_delta": 0,
+      "total_trades": 1,
+      "baseline_total_trades": 1,
+      "trade_retention_ratio": 1.0,
+      "total_pnl": 1.5166843618027244,
+      "total_low_volatility_rejections": 0,
+      "avg_stop_loss_entry_volatility_ratio": null,
+      "avg_stop_loss_close_volatility_ratio": null
+    }
+  ],
+  "adaptive_schedule": [
+    {
+      "start_date": "2020-01-01",
+      "end_date": "2020-01-10",
+      "candidate_label": "window=30_threshold=0.000000",
+      "regression_market_volatility_window_bars": 30,
+      "regression_min_market_volatility_ratio": 0.0,
+      "stop_loss_closes": 0,
+      "trade_count": 1,
+      "total_pnl": 1.5166843618027244,
+      "baseline_stop_loss_closes": 0,
+      "baseline_trade_count": 1,
+      "baseline_total_pnl": 1.5166843618027244
+    }
+  ],
+  "recommended_static_candidate": {
+    "candidate_label": "window=30_threshold=0.000000",
+    "candidate": {
+      "regression_market_volatility_window_bars": 30,
+      "regression_min_market_volatility_ratio": 0.0
+    },
+    "windows": 1,
+    "trade_retention_violations": 0,
+    "windows_beating_baseline_stop_losses": 0,
+    "windows_matching_baseline_stop_losses": 1,
+    "total_stop_loss_closes": 0,
+    "baseline_total_stop_loss_closes": 0,
+    "stop_loss_delta": 0,
+    "total_trades": 1,
+    "baseline_total_trades": 1,
+    "trade_retention_ratio": 1.0,
+    "total_pnl": 1.5166843618027244,
+    "total_low_volatility_rejections": 0,
+    "avg_stop_loss_entry_volatility_ratio": null,
+    "avg_stop_loss_close_volatility_ratio": null
+  }
+}

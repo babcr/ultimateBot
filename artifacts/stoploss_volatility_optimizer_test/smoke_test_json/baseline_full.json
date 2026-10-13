@@ -1,0 +1,25 @@
+{
+  "candidate_label": "window=30_threshold=0.000000",
+  "candidate": {
+    "regression_market_volatility_window_bars": 30,
+    "regression_min_market_volatility_ratio": 0.0
+  },
+  "start_date": "2020-01-01",
+  "end_date": "2020-01-10",
+  "runtime_seconds": 7.925600700022187,
+  "total_pnl": 1.5166843618027244,
+  "trade_count": 1,
+  "wins": 1,
+  "losses": 0,
+  "win_rate": 1.0,
+  "profit_factor": null,
+  "stop_loss_closes": 0,
+  "take_profit_closes": 1,
+  "other_closes": 0,
+  "analysis_windows": 81,
+  "low_volatility_rejections": 0,
+  "avg_stop_loss_entry_volatility_ratio": null,
+  "avg_stop_loss_entry_volatility_atr": null,
+  "avg_stop_loss_close_volatility_ratio": null,
+  "avg_stop_loss_close_volatility_atr": null
+}

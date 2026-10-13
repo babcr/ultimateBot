@@ -1,0 +1,1425 @@
+{
+  "decisions": [
+    {
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "bonus": 0,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:01:35.443000+00:00",
+        "valid": true,
+        "values": [
+          0.12499999999943111,
+          7.131109912688474e-05,
+          0.9690434052943528,
+          0.7825205805903217,
+          3.6322297343966023,
+          3.3216850888493377
+        ]
+      },
+      "mean": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 1,
+      "reason": "baseline_warmup"
+    },
+    {
+      "action": {
+        "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "bonus": 3.5645134107753633,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:13:03.183000+00:00",
+        "valid": true,
+        "values": [
+          -0.060294117646817066,
+          7.129394046064798e-05,
+          0.8457510772163823,
+          0.8790601190681546,
+          3.687903978492257,
+          3.7441485843810773
+        ]
+      },
+      "mean": 0.00479349683111626,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 2,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "bonus": 3.5645134107753633,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:13:05.452000+00:00",
+        "valid": true,
+        "values": [
+          -0.060294117646817066,
+          7.129394046064798e-05,
+          0.8457510772163823,
+          0.8790601190681546,
+          3.687903978492257,
+          3.7441485843810773
+        ]
+      },
+      "mean": 0.00479349683111626,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 3,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "5135fee573ab4006a25b3fbe2600527f65a0773fe5b659df41bb9add8c3276c8",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0.75,
+        "trailing_enabled": true
+      },
+      "bonus": 5.046912967136227,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:14:11.535000+00:00",
+        "valid": true,
+        "values": [
+          -0.06320224719077037,
+          7.12844114358017e-05,
+          0.8319711832071275,
+          0.8641549774536265,
+          3.750233221803604,
+          3.8052392552301315
+        ]
+      },
+      "mean": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 4,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "71fd8c4184c4f42636a11ccca6f791915b985469d541e3c9a1a4009299f2b833",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0.375,
+        "trailing_enabled": false
+      },
+      "bonus": 5.046912967136227,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:14:24.029000+00:00",
+        "valid": true,
+        "values": [
+          -0.06320224719077037,
+          7.12844114358017e-05,
+          0.8319711832071275,
+          0.8641549774536265,
+          3.750233221803604,
+          3.8052392552301315
+        ]
+      },
+      "mean": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 5,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "bonus": 5.809160595403985,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:41:54.813000+00:00",
+        "valid": true,
+        "values": [
+          0.039999999999928974,
+          7.127964787853949e-05,
+          0.8136192172372583,
+          0.9553851035261909,
+          3.56716369542984,
+          3.802899864409751
+        ]
+      },
+      "mean": 0.03402898809068012,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 6,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "bonus": 8.468260207807559,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:42:07.854000+00:00",
+        "valid": true,
+        "values": [
+          0.05000000000005,
+          7.128472902892378e-05,
+          0.7868941876842607,
+          0.9724593810693639,
+          3.465454613241528,
+          3.7748507070286825
+        ]
+      },
+      "mean": 0.07321189221085313,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 7,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "bonus": 7.283018006589585,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:48:44.142000+00:00",
+        "valid": true,
+        "values": [
+          -0.34375000000017025,
+          7.12987059284874e-05,
+          0.8769964676289618,
+          1.0384655432419598,
+          3.578255108781011,
+          3.834212803857325
+        ]
+      },
+      "mean": 0.0025398032518387566,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 8,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "b5bb715c44d3a7e19928028aa8a9afda0c4ad82c5c9ecf2e624a1ca95e59596c",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 1.125,
+        "trailing_enabled": true
+      },
+      "bonus": 11.107362685255046,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:55:36.567000+00:00",
+        "valid": true,
+        "values": [
+          -0.2507716049383039,
+          7.130760317318834e-05,
+          0.9548842891586519,
+          0.9183575600298178,
+          3.951012922719342,
+          3.8921263737136895
+        ]
+      },
+      "mean": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 9,
+      "reason": "linucb"
+    },
+    {
+      "action": {
+        "action_id": "bf019b88444c2410e65ed198b3b470cda138019d4d2544cbf10958107a744a2e",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": true
+      },
+      "bonus": 11.184769154432468,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:57:57.645000+00:00",
+        "valid": true,
+        "values": [
+          -0.23706896551778953,
+          7.131300615520386e-05,
+          0.9838991628784176,
+          0.918318525257021,
+          4.044944211926974,
+          3.9400272018377436
+        ]
+      },
+      "mean": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "policy_version": 10,
+      "reason": "linucb"
+    }
+  ],
+  "duplicate_deals": 0,
+  "main_closed_trades": 4,
+  "main_drawdown": 3.7457845636701776,
+  "main_pnl_net": 0.6533282391156447,
+  "memory": "C:\\git\\ultimateBot\\artifacts\\contextual_bandit_validation\\max-learning-eec0be84730648dd8d0ecaefa8141012.sqlite3",
+  "models": {
+    "EURUSD": {
+      "bounds": {
+        "lookback_bounds": [
+          5,
+          20
+        ],
+        "lookback_step": 1,
+        "lookbacks": [
+          5,
+          10,
+          19
+        ],
+        "maximum_stop_atr": 1.5,
+        "stop_coefficients": [
+          0,
+          0.375,
+          0.75,
+          1.125,
+          1.5
+        ],
+        "stop_unit": "ATR",
+        "trailing": [
+          false,
+          true
+        ],
+        "upper_bound": "exclusive"
+      },
+      "final_action": {
+        "action_id": "bf019b88444c2410e65ed198b3b470cda138019d4d2544cbf10958107a744a2e",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": true
+      },
+      "independent_validation": false,
+      "initial_action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "knowledge_at_or_after_run_start": false,
+      "loaded": false,
+      "memory": {
+        "latest_observation": "2020-01-02T01:57:57.645000+00:00",
+        "observations": 16,
+        "sources": {
+          "backtest_executed": {
+            "learned": 4,
+            "observations": 4,
+            "weight": 4
+          },
+          "shadow": {
+            "learned": 9,
+            "observations": 12,
+            "weight": 0.20416666666666666
+          }
+        }
+      },
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "scaler_frozen": true
+    }
+  },
+  "observations_this_run": [
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "assigned_weight": 1,
+      "close_reason": "take_profit",
+      "closed_at": "2020-01-02T01:01:35.443000+00:00",
+      "event_key": "57f407a84f687d5f692cde3d3cb3c0284f7ee49da3d98603ee7d42f6bb865a0c",
+      "group_id": null,
+      "initial_risk": 2.369197553079203,
+      "pnl_gross": 1.495592978502882,
+      "pnl_net": 1.495592978502882,
+      "raw_r": 0.6312656268613341,
+      "reward": 0.12625312537226682,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "45f6bcf3013d7f0311be2ff1e4ab9d86b1268eeae361a1970284e39ef3f1fe48",
+      "selection_policy_version": 0,
+      "source": "backtest_executed",
+      "status": "eligible",
+      "trajectory_key": "3324a570f9e7f6724e60d0bbd119e1b1df615fa86d33de09f39a58b8854aceff",
+      "variant_id": null,
+      "weight": 1
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+      "assigned_weight": 0.025,
+      "close_reason": "take_profit",
+      "closed_at": "2020-01-02T01:13:03.183000+00:00",
+      "event_key": "9fea2e5e5c39c49b8ce5859d754528ded39b3b500e6d7e0ce77ad5afd4c9069a",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.223224585867714,
+      "pnl_gross": 2.223224585867714,
+      "pnl_net": 2.223224585867714,
+      "raw_r": 1,
+      "reward": 0.2,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "b9096036a2479e21d180014687ccc020df28178fa009cfeceb6c9ceb41a79a3a",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "099c4d18c86e7dd358a25e8ac11e1bdcc27e393cf9ca159415afc719a2c7b4f6",
+      "variant_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+      "weight": 0.025
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+      "assigned_weight": 0.025,
+      "close_reason": "take_profit",
+      "closed_at": "2020-01-02T01:13:03.183000+00:00",
+      "event_key": "d6d42139cb5dc0b3107e7af190e3b058de77454d2a003fe515747a6078e2e848",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.223224585867714,
+      "pnl_gross": 2.223224585867714,
+      "pnl_net": 2.223224585867714,
+      "raw_r": 1,
+      "reward": 0.2,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "5dbc99856d195a468cc8f8ad694393a551eadb4ad91551351062ed3a33a36a19",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "268b21705ffcb00ae8f5394d1a7d867f1c33977f0e426c24b4fecd160e54d954",
+      "variant_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+      "weight": 0.025
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "assigned_weight": 1,
+      "close_reason": "take_profit",
+      "closed_at": "2020-01-02T01:13:05.452000+00:00",
+      "event_key": "2ce31c77a05f5ab46fbcc6cd39863d8ec6e3eb2fe2166e452e062e9fb32386d9",
+      "group_id": null,
+      "initial_risk": 2.4458596485994812,
+      "pnl_gross": 1.7664541906561866,
+      "pnl_net": 1.7664541906561866,
+      "raw_r": 0.7222222222226334,
+      "reward": 0.1444444444445267,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "77d09b6ec39e0a2e4a38860b99a8fc0b6089341eec5ae11d673310e834c30c07",
+      "selection_policy_version": 1,
+      "source": "backtest_executed",
+      "status": "eligible",
+      "trajectory_key": "fc1d6097918d8ef68587ce77c9e71704cb439d0c4d33e94e93e57d14462fb2cd",
+      "variant_id": null,
+      "weight": 1
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "assigned_weight": 0,
+      "close_reason": "take_profit",
+      "closed_at": "2020-01-02T01:13:05.452000+00:00",
+      "event_key": "49a32d386a8b2aa857b88f98bb926075a417a081594ce4a7ebf2c00fa8f2f591",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.4458596485994812,
+      "pnl_gross": 1.7664541906561866,
+      "pnl_net": 1.7664541906561866,
+      "raw_r": 0.7222222222226334,
+      "reward": 0.1444444444445267,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "77d09b6ec39e0a2e4a38860b99a8fc0b6089341eec5ae11d673310e834c30c07",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "executed_action_copy",
+      "trajectory_key": "1c010fee49933ff688a071efdd3ef7ee440be6d81871e64a6a034b33d70ffb46",
+      "variant_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "weight": 0
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "action_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+      "assigned_weight": 0.025,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:14:11.535000+00:00",
+      "event_key": "2abe581dab476a7c2301e59e8254850bc0da929d91975bf438ddd28fb6b2bf6a",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.487385180921994,
+      "pnl_gross": -2.487385180921994,
+      "pnl_net": -2.487385180921994,
+      "raw_r": -1,
+      "reward": -0.2,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "7f59a3fe1095838a1f69e5ec52d9b7c9a387b731e37bb8a86dc136f7886fe651",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "b3c03926f42f151ac31a69975bbed8d195c936a0da49b8274d80c8ef51866dd5",
+      "variant_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+      "weight": 0.025
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+      "assigned_weight": 0.025,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:14:11.535000+00:00",
+      "event_key": "967ad355a12caaa5e5ac42464de6a406a9c99a6568e6803b498088706537d731",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.487385180921994,
+      "pnl_gross": -2.487385180921994,
+      "pnl_net": -2.487385180921994,
+      "raw_r": -1,
+      "reward": -0.2,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "796d9a3a10223b2dc4dd6b6762c6ccdf40838aa7aac1faf22cf72cc5d9824bb1",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "27f3d2877ce0aba680e77baa35ae57f93c0b6464f293211c32b2e2da7b340a7b",
+      "variant_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+      "weight": 0.025
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "assigned_weight": 0.025,
+      "close_reason": "trailing_stop",
+      "closed_at": "2020-01-02T01:14:24.029000+00:00",
+      "event_key": "0282a7d8cab24700bd7154d257c907e730d4ff9651767434815da3d0366c25d4",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.223224585867714,
+      "pnl_gross": 8.522360912498389,
+      "pnl_net": 8.522360912498389,
+      "raw_r": 3.8333333333358004,
+      "reward": 0.7666666666671601,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "2283740bcaa92b5902a240f98bff75b9f119278c434175a2f8b864d27c3575d1",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "9bad9862fa703c3197c9b5b659b73337ec6435a4373d247642c60d9f8ce4851e",
+      "variant_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "weight": 0.025
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "assigned_weight": 0.0125,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:41:54.813000+00:00",
+      "event_key": "29bbadac1deb3f41532c1035c7ac3ef859df2f54d34e627b9aa63b28b3a48aeb",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.787327255612992,
+      "pnl_gross": -3.1508916802577303,
+      "pnl_net": -3.1508916802577303,
+      "raw_r": -1.1304347826085397,
+      "reward": -0.22608695652170793,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "f8c084ca819693af0b64ad8b8aa9eef90917f029ef85c0bba95b73a2f5a105fc",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "2d6e66507501d43a29d798591a95fe649477e0ac3d74ae18f8c5eb1028affaf8",
+      "variant_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "weight": 0.0125
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+      "assigned_weight": 0.0125,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:41:54.813000+00:00",
+      "event_key": "f3e7cb630a1948d6713125f3e645eeb63f053faa280d523699d572413778832c",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.494785553809457,
+      "pnl_gross": -2.820192365175519,
+      "pnl_net": -2.820192365175519,
+      "raw_r": -1.1304347826085397,
+      "reward": -0.22608695652170793,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "e5d2cc359c5bebf7a156e958bbbd0cd0b63c3fa3a7f97bd84bf5da6d8965d37d",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "f0ca039664404965049946888b0b237bd7b0b4c1a665da1f9e8ce64f0d8dc34d",
+      "variant_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+      "weight": 0.0125
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "71fd8c4184c4f42636a11ccca6f791915b985469d541e3c9a1a4009299f2b833",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0.375,
+        "trailing_enabled": false
+      },
+      "action_id": "71fd8c4184c4f42636a11ccca6f791915b985469d541e3c9a1a4009299f2b833",
+      "assigned_weight": 1,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:42:07.854000+00:00",
+      "event_key": "1009f26bf5d8f53efcce9c8c9f8bf062e1e6451878d604bdfa34c7dc81ec1d61",
+      "group_id": null,
+      "initial_risk": 2.5083835865814654,
+      "pnl_gross": -2.6087189300434206,
+      "pnl_net": -2.6087189300434206,
+      "raw_r": -1.0399999999994805,
+      "reward": -0.2079999999998961,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "27a05225bb3b3408223c10e4992a3b000a8fd6a9fc14b7af9f58e8e93e62eb8b",
+      "selection_policy_version": 5,
+      "source": "backtest_executed",
+      "status": "eligible",
+      "trajectory_key": "3da67af70cc950e80a3e22f4099f1a53691901c8ee0e87d5b10f3cae548689b3",
+      "variant_id": null,
+      "weight": 1
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+      "assigned_weight": 0.0125,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:48:44.142000+00:00",
+      "event_key": "1332b3269570cb64c4c8c25e2364e198f17ed0c5214d3a2777f0eebf36a200c4",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.6221697926042853,
+      "pnl_gross": -2.6881165778093012,
+      "pnl_net": -2.6881165778093012,
+      "raw_r": -1.0251497005994867,
+      "reward": -0.20502994011989734,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "3080ccda7e780685cbcedb2b311c57f8e894ebf01444c3be9ddb23438ee37494",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "e07b5f60f0915e25088e992347af20d183ed9412d20e7e430d86aab7300afe85",
+      "variant_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+      "weight": 0.0125
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "assigned_weight": 0,
+      "close_reason": "stop_loss",
+      "closed_at": "2020-01-02T01:55:36.567000+00:00",
+      "event_key": "7d5378bea1a39729e59c15a1c30656aead74cd6d461ccb65e519b5359f74d88d",
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "initial_risk": 2.6144738786720176,
+      "pnl_gross": -2.7160068448357833,
+      "pnl_net": -2.7160068448357833,
+      "raw_r": -1.0388349514569784,
+      "reward": -0.20776699029139567,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "291f8b448de75c9855380b329f0060eb24fc1e2fb24ab8ab79c0a31d577f35a5",
+      "selection_policy_version": 1,
+      "source": "shadow",
+      "status": "executed_action_copy",
+      "trajectory_key": "9f7d6e1c4a355aa9d0e3f00d4c327e866b02a7d036c8f338ddd5ef1ce6f60f1e",
+      "variant_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "weight": 0
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0.375,
+        "trailing_enabled": true
+      },
+      "action_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+      "assigned_weight": 0.041666666666666664,
+      "close_reason": "trailing_stop",
+      "closed_at": "2020-01-02T01:57:57.645000+00:00",
+      "event_key": "6b8bc4a2ae4ac947b7730ae10d6bcf5edcf9d45a6f7cdaaa90bad5923f8105a9",
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "initial_risk": 2.527440863095953,
+      "pnl_gross": 0,
+      "pnl_net": 0,
+      "raw_r": 0,
+      "reward": 0,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "43866f5f18df32238233c7f927a45356ab7e6902f186806ed47d124087cc3ab9",
+      "selection_policy_version": 6,
+      "source": "shadow",
+      "status": "eligible",
+      "trajectory_key": "874198e912b5b41934a9571ef331dbd21ecd3a4d7734a88f8b5cb025c089b24d",
+      "variant_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+      "weight": 0.041666666666666664
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+      "assigned_weight": 1,
+      "close_reason": "trailing_stop",
+      "closed_at": "2020-01-02T01:57:57.645000+00:00",
+      "event_key": "6d105dd5aa9056dd842ef64d40b9dd6378610da28756a4856cb889bf97e23f53",
+      "group_id": null,
+      "initial_risk": 2.3788622509629866,
+      "pnl_gross": 0,
+      "pnl_net": 0,
+      "raw_r": 0,
+      "reward": 0,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "a3ad9a4287accf095a2fb05bc90e8be19611a970a962c06a3940051abb2c61ce",
+      "selection_policy_version": 8,
+      "source": "backtest_executed",
+      "status": "eligible",
+      "trajectory_key": "a2639999e8c1f43e689163210486a377a596a7040b3cd34fd0b21f865a08aea5",
+      "variant_id": null,
+      "weight": 1
+    },
+    {
+      "account_currency": "engine_price_quantity",
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "assigned_weight": 0,
+      "close_reason": "trailing_stop",
+      "closed_at": "2020-01-02T01:57:57.645000+00:00",
+      "event_key": "80a0baf320eb1ca53263f32e7db5423e48ca97629372e8af79111ef51466ead7",
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "initial_risk": 2.480084463439023,
+      "pnl_gross": 0,
+      "pnl_net": 0,
+      "raw_r": 0,
+      "reward": 0,
+      "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+      "scenario_key": "acd771538c38cd673671b613d8db10044750f8ccae7f4c09633f950a933add44",
+      "selection_policy_version": 6,
+      "source": "shadow",
+      "status": "executed_action_copy",
+      "trajectory_key": "e7c04ab6a46b18b1efd0b0b1458fdb2e4f7348d04d4cfe16350bc796e6ca46db",
+      "variant_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "weight": 0
+    }
+  ],
+  "policy_changes": 8,
+  "provenance": {
+    "data_source": "D:\\jforex_history",
+    "end_date": "2020-01-02T02:00:00.938000+00:00",
+    "environment": "backtest",
+    "history": "D:\\jforex_history",
+    "source": "backtest_executed",
+    "start_date": "2020-01-02T00:00:01.022000+00:00",
+    "trace_digest": "02a96a10efcb8e94a705bd1a4a9879dccea9d41e6a45a7fc03720e400d3d4e6a",
+    "validation_case": "max_lookback"
+  },
+  "read_only": false,
+  "rolling_main_profit_factor": 1.2504402569366773,
+  "run_id": "3b2eabf3c74c4f48aed2b4db4fa8db93",
+  "shadow": [
+    {
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 1.125,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0.375,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "584ba24d3b924cb5d7188e843f299d4031866e010f3e74e2f1e431bd050bfe7a",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "584ba24d3b924cb5d7188e843f299d4031866e010f3e74e2f1e431bd050bfe7a",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "d10e4e3856fa63741af9f28abd9bc944a5ef8a9c5908f5a96bd3494502a065a7",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0.75,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 0,
+      "drawdown": 0,
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "d10e4e3856fa63741af9f28abd9bc944a5ef8a9c5908f5a96bd3494502a065a7",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 1,
+      "drawdown": 2.7637613121353226,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": -2.487385180921997,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 1,
+      "drawdown": 2.7637613121353226,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": -2.487385180921997,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 2,
+      "drawdown": 3.22307698877011,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": -0.5969677793078105,
+      "rolling_pf": 0.7883237375296377,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 2,
+      "drawdown": 4.262503973191585,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 5.371469232240656,
+      "rolling_pf": 2.7047457600323774,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 2,
+      "drawdown": 2.8225224066991714,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": -0.4648919919415917,
+      "rolling_pf": 0.8270566106472755,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 2,
+      "drawdown": 2.8184976691687567,
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "new_entries_allowed": false,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": -0.9495526541795982,
+      "rolling_pf": 0.6503865017921157,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "lookback": 10,
+        "stop_extra_atr_multiplier": 0,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 1,
+      "drawdown": 2.123029501778049,
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "new_entries_allowed": true,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "lookback": 19,
+        "stop_extra_atr_multiplier": 1.5,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 2.5680462274284244,
+      "closed_trades": 0,
+      "drawdown": 3.1075034219025,
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "new_entries_allowed": true,
+      "open_positions": 1,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": -1.6038727338843715,
+      "variant_id": "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 1.125,
+        "trailing_enabled": false
+      },
+      "capital_at_risk": 2.560508959637963,
+      "closed_trades": 0,
+      "drawdown": 3.353906102064549,
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "new_entries_allowed": true,
+      "open_positions": 1,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": -1.7310483107421393,
+      "variant_id": "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+      "weight_budget": 0.25
+    },
+    {
+      "action": {
+        "action_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+        "lookback": 5,
+        "stop_extra_atr_multiplier": 0.375,
+        "trailing_enabled": true
+      },
+      "capital_at_risk": 0,
+      "closed_trades": 1,
+      "drawdown": 1.5736895940054794,
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "new_entries_allowed": true,
+      "open_positions": 0,
+      "pending_orders": 0,
+      "pnl_net": 0,
+      "rolling_pf": 0,
+      "simulation": "existing bid/ask virtual fill; no market impact",
+      "unrealized_pnl": 0,
+      "variant_id": "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+      "weight_budget": 0.25
+    }
+  ],
+  "shadow_budget_per_group": 0.25,
+  "shadow_groups": [
+    {
+      "budget": 0.25,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T00:10:03.277000+00:00",
+        "valid": true,
+        "values": [
+          0.06250000000040945,
+          7.131141695785494e-05,
+          0.7245331677539621,
+          1.0724752225040763,
+          3.1726643330635076,
+          3.7456377879325453
+        ]
+      },
+      "counts": {},
+      "group_id": "dc97af5856eb5924fab47ac0e97a0a2a11eb43f9b1fb82dd2224737598db36a5",
+      "learners": [
+        "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+        "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+        "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70",
+        "584ba24d3b924cb5d7188e843f299d4031866e010f3e74e2f1e431bd050bfe7a",
+        "d10e4e3856fa63741af9f28abd9bc944a5ef8a9c5908f5a96bd3494502a065a7"
+      ],
+      "main_trades": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "spent": 0,
+      "start_bar": 10,
+      "started_at": "2020-01-02T00:10:03.277000+00:00",
+      "symbol": "EURUSD"
+    },
+    {
+      "budget": 0.25,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:01:35.443000+00:00",
+        "valid": true,
+        "values": [
+          0.12499999999943111,
+          7.131109912688474e-05,
+          0.9690434052943528,
+          0.7825205805903217,
+          3.6322297343966023,
+          3.3216850888493377
+        ]
+      },
+      "counts": {
+        "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710": 1,
+        "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d": 1,
+        "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6": 2,
+        "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1": 2,
+        "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6": 2
+      },
+      "group_id": "789cd70d6270fdb92144489a6d8755c3bfb26134af4f06720b42ee0abf3c6c3a",
+      "learners": [
+        "9a4c83648331d322afa612308c5586be2e78971e69d65798ebdf4b79fb62968d",
+        "82fa5d6ad14af88f817148efbdb9e3542c879223d3eb523fabe685515d00a710",
+        "b72623997a0340c412b9d1151169e14fb11fbf174dc6b40d6db50aead2f370c6",
+        "efe49d133ff045312c3afb37c005e16e40e4dc6ffd0d23f5e97ffc779d3656a6",
+        "d2b03f80d5a7b4fd1563acc57321872988695d873463227bad028c5b598fb5f1"
+      ],
+      "main_trades": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "spent": 0.16250000000000003,
+      "start_bar": 61,
+      "started_at": "2020-01-02T01:01:35.443000+00:00",
+      "symbol": "EURUSD"
+    },
+    {
+      "budget": 0.25,
+      "context": {
+        "available": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "bars": 10,
+        "convention": "quote-volumes-closed-window-atr-slope-v1",
+        "reason": "ready",
+        "timestamp": "2020-01-02T01:41:54.813000+00:00",
+        "valid": true,
+        "values": [
+          0.039999999999928974,
+          7.127964787853949e-05,
+          0.8136192172372583,
+          0.9553851035261909,
+          3.56716369542984,
+          3.802899864409751
+        ]
+      },
+      "counts": {
+        "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70": 1
+      },
+      "group_id": "22e63c38d48cad3dd97a74dcb3ec5d66adf8679736937d54ee7515f4545e56fb",
+      "learners": [
+        "90f653591118791f902c0fcc13fdff87c77e2f261e4cec377385e1955a1f3782",
+        "03d2a76c9c50feb3254ca7baaeb024e162c21405ab252461c986960c94027c16",
+        "407a84a57d93e5c518d525092dfb1655f31cd5f0bda04094a66fba766c04ea70"
+      ],
+      "main_trades": 0,
+      "model_id": "99129bc5d342b847b4cfb7bb7d038287fe1cd09eab4a152764f53dc43d9cdf5b",
+      "spent": 0.041666666666666664,
+      "start_bar": 101,
+      "started_at": "2020-01-02T01:41:54.813000+00:00",
+      "symbol": "EURUSD"
+    }
+  ],
+  "shadow_limit": 6,
+  "validation": {
+    "arguments": [
+      "--symbols",
+      "EURUSD",
+      "--strategy",
+      "swing-regression",
+      "--candle-interval",
+      "1m",
+      "--regression-lookback-bars",
+      "10",
+      "--level-lookback-bars",
+      "30",
+      "--regression-global-timeframe-multiplier",
+      "1",
+      "--regression-min-market-volatility-ratio",
+      "0",
+      "--regression-score-threshold",
+      "0",
+      "--regression-min-parallelism",
+      "0",
+      "--regression-min-consecutive-swing-distance-atr",
+      "0",
+      "--no-regression-level-reaction",
+      "--reward-risk-ratio",
+      ".5",
+      "--trailing-start-rr-ratio",
+      ".1",
+      "--contextual-bandit",
+      "--bandit-memory",
+      "C:\\git\\ultimateBot\\artifacts\\contextual_bandit_validation\\max-learning-eec0be84730648dd8d0ecaefa8141012.sqlite3",
+      "--bandit-context-bars",
+      "10",
+      "--bandit-warmup",
+      "2",
+      "--bandit-shadow-limit",
+      "6",
+      "--bandit-group-max-bars",
+      "30",
+      "--adaptive-lookback-min",
+      "5",
+      "--adaptive-lookback-max",
+      "20",
+      "--regression-lookback-bars",
+      "19",
+      "--bandit-lookback-grid",
+      "5,10,19"
+    ],
+    "case": "max_lookback",
+    "cpu_seconds": 3.265625,
+    "data_fingerprint": "5198466c4c6913c3d45b5252ff9aec3237cef5624b628152639f88afd5b17723",
+    "end": "2020-01-02T02:00:00.938000+00:00",
+    "peak_process_bytes": 102580224,
+    "source": "local JForex history",
+    "start": "2020-01-02T00:00:01.022000+00:00",
+    "symbol": "EURUSD",
+    "ticks": 3480,
+    "wall_seconds": 3.642835099999502
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "main_closed_trades": 2,
+  "main_pnl_net": -0.9386303909704878,
+  "validation": {
+    "arguments": [
+      "--symbols",
+      "EURUSD",
+      "--strategy",
+      "swing-regression",
+      "--candle-interval",
+      "1m",
+      "--regression-lookback-bars",
+      "10",
+      "--level-lookback-bars",
+      "30",
+      "--regression-global-timeframe-multiplier",
+      "1",
+      "--regression-min-market-volatility-ratio",
+      "0",
+      "--regression-score-threshold",
+      "0",
+      "--regression-min-parallelism",
+      "0",
+      "--regression-min-consecutive-swing-distance-atr",
+      "0",
+      "--no-regression-level-reaction",
+      "--reward-risk-ratio",
+      ".5",
+      "--trailing-start-rr-ratio",
+      ".1"
+    ],
+    "case": "disabled",
+    "cpu_seconds": 0.453125,
+    "data_fingerprint": "5198466c4c6913c3d45b5252ff9aec3237cef5624b628152639f88afd5b17723",
+    "end": "2020-01-02T02:00:00.938000+00:00",
+    "peak_process_bytes": 96997376,
+    "source": "local JForex history",
+    "start": "2020-01-02T00:00:01.022000+00:00",
+    "symbol": "EURUSD",
+    "ticks": 3480,
+    "wall_seconds": 0.44038690000161296
+  }
+}
