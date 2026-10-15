@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Convertit les exports historiques JForex en parquet mensuel sous D:\\ticks.
+"""Convertit les exports historiques JForex en parquet mensuel sous C:\\ticks.
 
 Source attendue par defaut:
-    D:\\jforex_history\\EURUSD\\2020\\01\\2020-01-01.tsv
+    C:\\jforex_history\\EURUSD\\2020\\01\\2020-01-01.tsv
 
 Chaque fichier journalier contient des trames START/QUOTE/STOP ecrites par
  DukascopyHistoricalTickExport.java. Les jours sans ticks existent quand meme,
@@ -26,7 +26,6 @@ from download_dukascopy_ticks import (  # noqa: E402
     DEFAULT_BATCH_ROWS,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_START_DATE,
-    DEFAULT_SYMBOLS,
     MonthlyQuoteWriter,
     _iter_month_windows,
     _load_parquet_modules,
@@ -37,7 +36,9 @@ from download_dukascopy_ticks import (  # noqa: E402
     _target_file,
 )
 
-DEFAULT_SOURCE_DIR = Path(r"D:\jforex_history")
+DEFAULT_SOURCE_DIR = Path(r"C:\jforex_history")
+DEFAULT_SYMBOLS = ("USDCHF", "GBPUSD", "USDCAD", "EURUSD")
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 FRAME_TYPES = {"START", "STOP", "HEARTBEAT", "QUOTE"}
 
 
@@ -98,7 +99,9 @@ def _parse_export_line(line: str, symbol: str) -> tuple[str, QuoteTick | None]:
     cells = line.rstrip("\r\n").split("\t")
     if len(cells) != 9:
         raise ValueError("trame JForex incomplete")
-    kind, frame_symbol, stamp_text, _session, seq_text, bid_text, ask_text, bid_size_text, ask_size_text = cells
+    kind, frame_symbol, stamp_text, session, seq_text, bid_text, ask_text, bid_size_text, ask_size_text = cells
+    if not session:
+        raise ValueError("session JForex absente")
     if frame_symbol != symbol:
         raise ValueError(f"symbole inattendu {frame_symbol!r}")
     if kind not in FRAME_TYPES:
@@ -110,8 +113,6 @@ def _parse_export_line(line: str, symbol: str) -> tuple[str, QuoteTick | None]:
         raise ValueError("horodatage ou sequence invalides") from exc
     if sequence < 0 or timestamp_ms < 0:
         raise ValueError("horodatage ou sequence negatifs")
-    if kind != "QUOTE":
-        return kind, None
     try:
         bid = float(bid_text)
         ask = float(ask_text)
@@ -119,13 +120,17 @@ def _parse_export_line(line: str, symbol: str) -> tuple[str, QuoteTick | None]:
         ask_size = float(ask_size_text)
     except ValueError as exc:
         raise ValueError("bid/ask/volumes invalides") from exc
-    if bid <= 0 or ask < bid:
-        raise ValueError("bid/ask incoherents")
     if not all(math.isfinite(value) for value in (bid, ask, bid_size, ask_size)):
         raise ValueError("valeurs non finies dans la trame")
+    if kind != "QUOTE":
+        if any(value != 0 for value in (bid, ask, bid_size, ask_size)):
+            raise ValueError("valeurs de controle invalides")
+        return kind, None
+    if bid <= 0 or ask < bid or bid_size < 0 or ask_size < 0:
+        raise ValueError("bid/ask/volumes incoherents")
     quote = QuoteTick(
         symbol,
-        datetime.fromtimestamp(timestamp_ms / 1000, timezone.utc),
+        EPOCH + timedelta(milliseconds=timestamp_ms),
         bid,
         ask,
         bid_size=bid_size,
@@ -134,6 +139,55 @@ def _parse_export_line(line: str, symbol: str) -> tuple[str, QuoteTick | None]:
         sequence=sequence,
     )
     return kind, quote
+
+
+def _iter_day_quotes(day_path: Path, symbol: str, day_start: datetime):
+    """Valide START/QUOTE/STOP et les sequences avant publication du parquet."""
+    lower_ms = int((day_start - EPOCH).total_seconds()) * 1000
+    upper_ms = lower_ms + 86_400_000
+    session: str | None = None
+    sequence = 0
+    previous_timestamp_ms = lower_ms
+    saw_stop = False
+    line_number = 0
+    with day_path.open("r", encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, start=1):
+            try:
+                if not line.endswith("\n"):
+                    raise ValueError("derniere trame tronquee (fin de ligne absente)")
+                if saw_stop:
+                    raise ValueError("trame apres STOP")
+                kind, quote = _parse_export_line(line, symbol)
+                cells = line.rstrip("\r\n").split("\t")
+                timestamp_ms, frame_sequence = int(cells[2]), int(cells[4])
+                if session is None:
+                    if kind != "START" or timestamp_ms != lower_ms or frame_sequence != 0:
+                        raise ValueError("START initial invalide ou absent")
+                    session = cells[3]
+                    continue
+                if cells[3] != session:
+                    raise ValueError("session modifiee en cours de jour")
+                if kind == "QUOTE":
+                    if frame_sequence != sequence + 1:
+                        raise ValueError("sequence manquante ou dupliquee")
+                    if not lower_ms <= timestamp_ms < upper_ms:
+                        raise ValueError("quote hors du jour UTC")
+                    if timestamp_ms < previous_timestamp_ms:
+                        raise ValueError("timestamps decroissants")
+                    sequence = frame_sequence
+                    previous_timestamp_ms = timestamp_ms
+                    assert quote is not None
+                    yield quote
+                elif kind == "STOP":
+                    if timestamp_ms != upper_ms - 1 or frame_sequence != sequence:
+                        raise ValueError("STOP invalide")
+                    saw_stop = True
+                else:
+                    raise ValueError("type de trame inattendu apres START")
+            except (ValueError, OverflowError) as exc:
+                raise ValueError(f"{day_path}:{line_number}: {exc}") from exc
+    if session is None or not saw_stop:
+        raise ValueError(f"{day_path}:{line_number + 1}: jour source incomplet (START/STOP manquants)")
 
 
 def _write_month_from_exports(
@@ -146,41 +200,13 @@ def _write_month_from_exports(
 ) -> int:
     pa, pq = _load_parquet_modules()
     writer = MonthlyQuoteWriter(output_path, symbol, _point_scale(symbol))
-    lower_ms = int(start.timestamp() * 1000)
-    upper_ms = int(end.timestamp() * 1000)
-    previous_timestamp_ms: int | None = None
-
     try:
         for day_start in _iter_days(start, end):
             day_path = _day_file(source_dir, symbol, day_start)
-            saw_start = False
-            saw_stop = False
-            with day_path.open("r", encoding="utf-8") as stream:
-                for line_number, line in enumerate(stream, start=1):
-                    kind, quote = _parse_export_line(line, symbol)
-                    if kind == "START":
-                        saw_start = True
-                    elif kind == "STOP":
-                        saw_stop = True
-                    if quote is None:
-                        continue
-
-                    timestamp_ms = int(quote.timestamp.timestamp() * 1000)
-                    if not (lower_ms <= timestamp_ms < upper_ms):
-                        raise ValueError(
-                            f"quote hors fenetre dans {day_path}:{line_number}: {timestamp_ms}"
-                        )
-                    if previous_timestamp_ms is not None and timestamp_ms < previous_timestamp_ms:
-                        raise ValueError(
-                            f"timestamps decroissants dans {day_path}:{line_number}"
-                        )
-                    previous_timestamp_ms = timestamp_ms
-                    writer.append(quote)
-                    if writer.pending_rows() >= batch_rows:
-                        writer.flush(pa, pq)
-
-            if not saw_start or not saw_stop:
-                raise ValueError(f"jour source incomplet (START/STOP manquants): {day_path}")
+            for quote in _iter_day_quotes(day_path, symbol, day_start):
+                writer.append(quote)
+                if writer.pending_rows() >= batch_rows:
+                    writer.flush(pa, pq)
 
         writer.flush(pa, pq)
         writer.finalize()
@@ -247,6 +273,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="Liste de paires separees par des virgules.",
     )
     parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Verifie tous les TSV sans creer de parquet (pyarrow non requis).",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Reecrit les fichiers parquet existants.",
@@ -300,6 +331,23 @@ def main() -> int:
     start_inclusive = datetime.combine(args.start_date, datetime.min.time(), tzinfo=timezone.utc)
     if start_inclusive >= end_exclusive:
         raise ValueError("La fenetre demandee est vide")
+
+    if args.validate_only:
+        days_checked = quotes_checked = 0
+        for symbol in symbols:
+            for month_start, month_end in _iter_month_windows(args.start_date, end_exclusive):
+                problem = _validate_source_month(args.source_dir, symbol, month_start, month_end)
+                if problem is not None:
+                    raise ValueError(problem)
+                month_quotes = 0
+                for day_start in _iter_days(month_start, month_end):
+                    month_quotes += sum(1 for _ in _iter_day_quotes(
+                        _day_file(args.source_dir, symbol, day_start), symbol, day_start))
+                    days_checked += 1
+                quotes_checked += month_quotes
+                print(f"[valid] {symbol} {month_start:%Y-%m} quotes={month_quotes:,}")
+        print(f"[summary] validated_days={days_checked} validated_quotes={quotes_checked:,}")
+        return 0
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -93,8 +93,9 @@ class StrategyLookbackTests(unittest.TestCase):
         self.assertGreaterEqual(analysis["anchor"]["index"], 20)
         self.assertEqual(analysis["anchor"]["time"], candles["mid"][analysis["anchor"]["index"]].start_time)
         self.assertTrue(all(swing["index"] == 29 for swing in analysis["fresh_swings"]))
-        self.assertEqual(analysis["entry_level_reaction"]["origin"]["index"], 28)
-        self.assertLess(analysis["entry_level_reaction"]["level"]["latest_index"], 28)
+        self.assertEqual(analysis["entry_level_reaction"]["origin"]["index"], 29)
+        self.assertEqual(analysis["entry_level_reaction"]["origin"], analysis["entry_level_reaction"]["trigger"])
+        self.assertLess(analysis["entry_level_reaction"]["level"]["latest_index"], 29)
 
     def test_index_projection_matches_detection_on_each_window_with_variable_spreads(self):
         rng = Random(41)

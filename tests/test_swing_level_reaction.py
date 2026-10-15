@@ -24,7 +24,7 @@ START = datetime(2020, 1, 2, tzinfo=timezone.utc)
 
 def point(kind, index, price):
     return {"kind": kind, "index": index, "price": price, "strength": 3.0,
-            "source": "bid" if kind == "low" else "ask"}
+            "source": "ask" if kind == "low" else "bid"}
 
 
 def bounce_swings():
@@ -32,7 +32,7 @@ def bounce_swings():
     for index in range(5):
         swings += [point("low", 1 + index * 4, 100.0),
                    point("high", 3 + index * 4, 102.0 + index)]
-    return swings + [point("low", 21, 100.1), point("high", 29, 108.0)]
+    return swings + [point("high", 25, 108.0), point("low", 29, 100.1)]
 
 
 def mirror(swings):
@@ -58,7 +58,7 @@ def reaction_ticks(count=30, direction=1, drift=0.001):
     for index in range(count):
         opening = 101.0 + 0.08 * index
         prices = (opening, 104.0 + 0.2 * index, 100.0 + drift * index,
-                  opening + (0.4 if index % 2 == 0 else -0.4))
+                  opening + (0.4 if index % 2 == 1 else -0.4))
         for seconds, price in zip((0, 10, 20, 50), prices):
             bid, ask = (price, price + 0.01) if direction == 1 else (210.0 - price - 0.01, 210.0 - price)
             ticks.append(Tick(START + timedelta(minutes=index, seconds=seconds), "TEST", bid, ask, 1, 1))
@@ -94,7 +94,8 @@ class SwingLevelReactionTests(unittest.TestCase):
 
     def test_regression_entry_without_level_is_rejected_and_can_be_compared(self):
         swings = [point("low", i, 100 + 0.1 * i) for i in (1, 10, 20)]
-        swings += [point("high", i, 102 + 0.1 * i) for i in (5, 15, 29)]
+        swings += [point("high", i, 102 + 0.1 * i) for i in (5, 15, 25)]
+        swings += [point("low", 29, 102.9)]
         legacy, _ = self.decide(swings, regression_require_level_reaction=False)
         decision, analysis = self.decide(swings)
         self.assertIsNotNone(legacy)
@@ -111,16 +112,17 @@ class SwingLevelReactionTests(unittest.TestCase):
     def test_trigger_cannot_create_its_own_level(self):
         # The only point near 108 is the new trigger, even with one touch allowed.
         swings = bounce_swings()
-        swings[-2] = point("low", 21, 107.9)
+        swings[-2] = point("high", 25, 109.5)
+        swings[-1] = point("low", 29, 107.9)
         reactions = evaluate_trigger_level_reactions(
             swings, [swings[-1]], "buy", 109, 2, 0.001, rules(min_level_touches=1),
         )
         self.assertFalse(reactions[0]["passed"])
-        self.assertTrue(all(level["latest_index"] < 21 for level in reactions[0]["levels"]))
+        self.assertTrue(all(level["latest_index"] < 29 for level in reactions[0]["levels"]))
 
     def test_origin_must_touch_the_level_even_if_trigger_is_near_another_level(self):
         swings = bounce_swings()
-        swings[-2] = point("low", 21, 101.0)
+        swings[-1] = point("low", 29, 101.0)
         decision, analysis = self.decide(swings)
         self.assertIsNone(decision)
         self.assertEqual(analysis["trigger_level_reactions"][0]["reason"], "origin_too_far_from_level")
@@ -167,8 +169,9 @@ class SwingLevelReactionTests(unittest.TestCase):
         # A close-to-line swing without a reaction must not borrow a reaction
         # from a second swing that fails its own regression distance check.
         swings = bounce_swings()
-        swings[-1] = point("high", 25, 108.0)
-        swings += [point("low", 27, 101.0), point("high", 29, 109.0)]
+        swings[-2] = point("high", 23, 108.0)
+        swings[-1] = point("low", 25, 100.1)
+        swings += [point("high", 27, 109.0), point("low", 29, 101.0)]
         trigger_with_reaction = swings[11]
         trigger_without_reaction = swings[-1]
         reactions = evaluate_trigger_level_reactions(

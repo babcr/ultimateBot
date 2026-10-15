@@ -1,6 +1,10 @@
 import com.dukascopy.api.*;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -36,10 +40,10 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     private static final long DAY_MS = Period.DAILY.getInterval();
 
     @Configurable("Instruments CSV")
-    public String instrumentsCsv = "EURGBP,EURCHF,EURUSD,EURCAD,EURAUD,EURNZD,USDCHF,USDCAD,GBPUSD,GBPCAD,GBPCHF,GBPAUD,GBPNZD,BTCUSD,ETHUSD";
+    public String instrumentsCsv = "USDCHF,GBPUSD,USDCAD,EURUSD";
 
     @Configurable("Dossier de sortie")
-    public String outputDirectory = "D:\\jforex_history";
+    public String outputDirectory = "C:\\jforex_history";
 
     @Configurable("Debut GMT yyyy-MM-dd")
     public String startDate = "2020-01-01";
@@ -62,18 +66,20 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     private IHistory history;
     private IConsole console;
     private Path baseOutputDirectory;
+    private FileChannel lockChannel;
+    private FileLock exportLock;
 
     private int queuedDays = 0;
     private int skippedDays = 0;
     private int completedDays = 0;
     private long completedQuotes = 0;
-    private boolean stopping = false;
+    private volatile boolean stopping = false;
     private String asyncFailureMessage = null;
     private Exception asyncFailure = null;
     private DayWriter activeWriter = null;
 
     @Override
-    public void onStart(IContext context) throws JFException {
+    public synchronized void onStart(IContext context) throws JFException {
         this.context = context;
         this.history = context.getHistory();
         this.console = context.getConsole();
@@ -81,16 +87,22 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         try {
             baseOutputDirectory = Paths.get(outputDirectory);
             Files.createDirectories(baseOutputDirectory);
+            lockChannel = FileChannel.open(baseOutputDirectory.resolve(".history-export.lock"),
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            exportLock = lockChannel.tryLock();
+            if (exportLock == null) {
+                throw new IOException("Un autre export utilise deja " + baseOutputDirectory);
+            }
 
-                Set<Instrument> instruments = parseInstruments(instrumentsCsv);
+            Set<Instrument> instruments = parseInstruments(instrumentsCsv);
             long startInclusive = parseUtcDate(startDate);
             long endExclusive = computeEndExclusive(endDate);
             if (startInclusive >= endExclusive) {
                 throw new IllegalArgumentException("La fenetre demandee est vide");
             }
 
-                Set<Instrument> subscribedInstruments = subscribeAndFilterInstruments(instruments);
-                planJobs(subscribedInstruments, startInclusive, endExclusive);
+            Set<Instrument> subscribedInstruments = subscribeAndFilterInstruments(instruments);
+            planJobs(subscribedInstruments, startInclusive, endExclusive);
 
             print(String.format(
                     Locale.US,
@@ -113,6 +125,12 @@ public class DukascopyHistoricalTickExport implements IStrategy {
 
             startNextJob();
         } catch (Exception error) {
+            stopping = true;
+            if (activeWriter != null) {
+                activeWriter.abortQuietly();
+                activeWriter = null;
+            }
+            releaseExportLock();
             throw new JFException("Impossible de demarrer l'export historique : " + error.getMessage(), error);
         }
     }
@@ -157,12 +175,22 @@ public class DukascopyHistoricalTickExport implements IStrategy {
                         @Override
                         public void newTick(Instrument instrument, long time, double ask, double bid,
                                             double askVol, double bidVol) {
-                            try {
-                                writer.writeQuote(time, bid, ask, bidVol, askVol);
-                            } catch (IOException error) {
-                                recordAsyncFailure(
-                                        "Ecriture impossible pour " + job.instrument + " " + formatUtcDay(job.startInclusiveMs),
-                                        error);
+                            synchronized (DukascopyHistoricalTickExport.this) {
+                                if (stopping || activeWriter != writer) {
+                                    return;
+                                }
+                                try {
+                                    if (!job.instrument.equals(instrument)) {
+                                        throw new IOException("Instrument inattendu: " + instrument);
+                                    }
+                                    writer.writeQuote(time, bid, ask, bidVol, askVol);
+                                } catch (IOException error) {
+                                    recordAsyncFailure(
+                                            "Tick invalide ou ecriture impossible pour " + job.instrument
+                                                    + " " + formatUtcDay(job.startInclusiveMs) + " time=" + time,
+                                            error);
+                                    abortStrategy(asyncFailureMessage, error);
+                                }
                             }
                         }
 
@@ -198,10 +226,19 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     }
 
     private synchronized void completeJob(ExportJob job, DayWriter writer, boolean allDataLoaded) {
+        // Un callback tardif ne doit ni publier un jour interrompu ni lancer le suivant.
+        if (activeWriter != writer) {
+            return;
+        }
         if (asyncFailure != null) {
             writer.abortQuietly();
             activeWriter = null;
             abortStrategy(asyncFailureMessage, asyncFailure);
+            return;
+        }
+        if (stopping) {
+            writer.abortQuietly();
+            activeWriter = null;
             return;
         }
         if (!allDataLoaded) {
@@ -249,9 +286,15 @@ public class DukascopyHistoricalTickExport implements IStrategy {
                 ExportJob job = buildJob(instrument, dayStart);
                 Path tempPath = tempPath(job.targetPath);
                 if (!overwriteExistingDays && Files.exists(job.targetPath)) {
-                    Files.deleteIfExists(tempPath);
-                    skippedDays++;
-                    continue;
+                    try {
+                        validateDayFile(job.targetPath, instrument.toString().replace("/", ""), dayStart);
+                        Files.deleteIfExists(tempPath);
+                        skippedDays++;
+                        continue;
+                    } catch (IOException error) {
+                        err("[history-export] jour invalide, a reexporter: " + job.targetPath
+                                + " : " + error.getMessage());
+                    }
                 }
                 if (Files.exists(tempPath)) {
                     Files.delete(tempPath);
@@ -350,8 +393,8 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         if (!blockedOther.isEmpty()) {
             err("[history-export] instruments refuses ou indisponibles apres tentative d'abonnement: " + blockedOther);
         }
-        if (subscribedInstruments.isEmpty()) {
-            throw new IllegalArgumentException("Aucun instrument effectivement abonne par JForex");
+        if (subscribedInstruments.size() != requestedInstruments.size()) {
+            throw new IllegalArgumentException("Tous les instruments demandes doivent etre abonnes");
         }
         return subscribedInstruments;
     }
@@ -395,6 +438,9 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     }
 
     private static long parseUtcDate(String text) throws ParseException {
+        if (text == null || !text.trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
+            throw new ParseException("Date attendue au format yyyy-MM-dd: " + text, 0);
+        }
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         formatter.setLenient(false);
         formatter.setTimeZone(GMT);
@@ -416,7 +462,7 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         if (trimmed.isEmpty()) {
             return floorUtcDay(System.currentTimeMillis());
         }
-        return parseUtcDate(trimmed) + DAY_MS;
+        return Math.min(parseUtcDate(trimmed) + DAY_MS, floorUtcDay(System.currentTimeMillis()));
     }
 
     private static String formatUtcDay(long timestampMs) {
@@ -435,6 +481,93 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         } catch (AtomicMoveNotSupportedException error) {
             Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private static void validateQuote(long timestampMs, double bid, double ask,
+                                      double bidSize, double askSize, long dayStartMs,
+                                      long previousTimestampMs) throws IOException {
+        if (timestampMs < dayStartMs || timestampMs >= dayStartMs + DAY_MS) {
+            throw new IOException("Tick hors du jour UTC: " + timestampMs);
+        }
+        if (timestampMs < previousTimestampMs) {
+            throw new IOException("Timestamps decroissants: " + previousTimestampMs + " -> " + timestampMs);
+        }
+        if (!Double.isFinite(bid) || !Double.isFinite(ask)
+                || !Double.isFinite(bidSize) || !Double.isFinite(askSize)
+                || bid <= 0 || ask < bid || bidSize < 0 || askSize < 0) {
+            throw new IOException("Bid/ask/volumes invalides: " + bid + "/" + ask
+                    + " volumes=" + bidSize + "/" + askSize);
+        }
+    }
+
+    /** Verifie tout le fichier, y compris la derniere fin de ligne, avant publication ou reprise. */
+    private static long validateDayFile(Path path, String symbol, long dayStartMs) throws IOException {
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            if (channel.size() == 0) {
+                throw new IOException("Fichier vide: " + path);
+            }
+            channel.position(channel.size() - 1);
+            ByteBuffer lastByte = ByteBuffer.allocate(1);
+            if (channel.read(lastByte) != 1 || lastByte.get(0) != '\n') {
+                throw new IOException("Derniere trame tronquee: " + path);
+            }
+        }
+        long sequence = 0;
+        long previousTimestampMs = dayStartMs;
+        String fileSession = null;
+        boolean sawStop = false;
+        long lineNumber = 0;
+        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                try {
+                    String[] cells = line.split("\t", -1);
+                    if (cells.length != 9 || !symbol.equals(cells[1]) || cells[3].isEmpty() || sawStop) {
+                        throw new IOException("Trame incomplete, symbole/session incorrects ou trame apres STOP");
+                    }
+                    long timestampMs = Long.parseLong(cells[2]);
+                    long frameSequence = Long.parseLong(cells[4]);
+                    double bid = Double.parseDouble(cells[5]);
+                    double ask = Double.parseDouble(cells[6]);
+                    double bidSize = Double.parseDouble(cells[7]);
+                    double askSize = Double.parseDouble(cells[8]);
+                    if (fileSession == null) {
+                        if (!"START".equals(cells[0]) || timestampMs != dayStartMs || frameSequence != 0) {
+                            throw new IOException("START initial invalide ou absent");
+                        }
+                        fileSession = cells[3];
+                    } else {
+                        if (!fileSession.equals(cells[3])) {
+                            throw new IOException("Session modifiee en cours de jour");
+                        }
+                        if ("QUOTE".equals(cells[0])) {
+                            if (frameSequence != sequence + 1) {
+                                throw new IOException("Sequence manquante ou dupliquee: " + frameSequence);
+                            }
+                            validateQuote(timestampMs, bid, ask, bidSize, askSize, dayStartMs, previousTimestampMs);
+                            previousTimestampMs = timestampMs;
+                            sequence = frameSequence;
+                            continue;
+                        }
+                        if (!"STOP".equals(cells[0]) || timestampMs != dayStartMs + DAY_MS - 1
+                                || frameSequence != sequence) {
+                            throw new IOException("STOP invalide ou type de trame inattendu");
+                        }
+                        sawStop = true;
+                    }
+                    if (bid != 0 || ask != 0 || bidSize != 0 || askSize != 0) {
+                        throw new IOException("Valeurs de controle START/STOP invalides");
+                    }
+                } catch (IOException | IllegalArgumentException error) {
+                    throw new IOException(path + ":" + lineNumber + " : " + error.getMessage(), error);
+                }
+            }
+        }
+        if (fileSession == null || !sawStop) {
+            throw new IOException("Jour incomplet, START/STOP manquants: " + path);
+        }
+        return sequence;
     }
 
     private void print(String message) {
@@ -458,13 +591,35 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     public void onAccount(IAccount account) throws JFException {}
 
     @Override
-    public void onStop() throws JFException {
+    public synchronized void onStop() throws JFException {
+        stopping = true;
         if (activeWriter != null) {
             activeWriter.abortQuietly();
             activeWriter = null;
         }
         if (asyncFailure != null) {
             err("[history-export] stop apres erreur: " + asyncFailureMessage);
+        }
+        releaseExportLock();
+    }
+
+    private void releaseExportLock() {
+        try {
+            if (exportLock != null) {
+                exportLock.release();
+                exportLock = null;
+            }
+        } catch (IOException error) {
+            err("[history-export] Liberation du verrou impossible: " + error);
+        } finally {
+            try {
+                if (lockChannel != null) {
+                    lockChannel.close();
+                    lockChannel = null;
+                }
+            } catch (IOException error) {
+                err("[history-export] Fermeture du verrou impossible: " + error);
+            }
         }
     }
 
@@ -488,45 +643,65 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         private final String symbol;
         private final String session;
         private final BufferedWriter writer;
+        private final long dayStartMs;
+        private long previousTimestampMs;
         private long sequence = 0;
         private long quoteCount = 0;
         private boolean closed = false;
+        private boolean failed = false;
 
         private DayWriter(Path finalPath, Instrument instrument, String session, long dayStartMs) throws IOException {
             this.finalPath = finalPath;
             this.tempPath = tempPath(finalPath);
             this.symbol = instrument.toString().replace("/", "");
             this.session = session;
+            this.dayStartMs = dayStartMs;
+            this.previousTimestampMs = dayStartMs;
             Files.createDirectories(finalPath.getParent());
-            if (Files.exists(tempPath)) {
-                Files.delete(tempPath);
-            }
             writer = Files.newBufferedWriter(
                     tempPath,
                     StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE);
-            writeFrame("START", dayStartMs, 0.0, 0.0, 0.0, 0.0);
+            try {
+                writeFrame("START", dayStartMs, 0.0, 0.0, 0.0, 0.0);
+            } catch (IOException error) {
+                abortQuietly();
+                throw error;
+            }
         }
 
-        private void writeQuote(long timestampMs, double bid, double ask, double bidSize, double askSize) throws IOException {
-            sequence++;
-            writeFrame("QUOTE", timestampMs, bid, ask, bidSize, askSize);
-            quoteCount++;
+        private synchronized void writeQuote(long timestampMs, double bid, double ask,
+                                             double bidSize, double askSize) throws IOException {
+            ensureWritable();
+            try {
+                validateQuote(timestampMs, bid, ask, bidSize, askSize, dayStartMs, previousTimestampMs);
+                sequence++;
+                writeFrame("QUOTE", timestampMs, bid, ask, bidSize, askSize);
+                previousTimestampMs = timestampMs;
+                quoteCount++;
+            } catch (IOException error) {
+                failed = true;
+                throw error;
+            }
         }
 
-        private void finish(long stopTimestampMs) throws IOException {
-            if (closed) {
-                return;
+        private synchronized void finish(long stopTimestampMs) throws IOException {
+            ensureWritable();
+            if (stopTimestampMs != dayStartMs + DAY_MS - 1) {
+                throw new IOException("Borne STOP incorrecte: " + stopTimestampMs);
             }
             writeFrame("STOP", stopTimestampMs, 0.0, 0.0, 0.0, 0.0);
             writer.close();
             closed = true;
+            if (validateDayFile(tempPath, symbol, dayStartMs) != quoteCount) {
+                throw new IOException("Nombre de trames relues different du nombre ecrit");
+            }
             moveReplacing(tempPath, finalPath);
         }
 
-        private void abortQuietly() {
+        private synchronized void abortQuietly() {
+            failed = true;
             if (!closed) {
                 try {
                     writer.close();
@@ -542,30 +717,20 @@ public class DukascopyHistoricalTickExport implements IStrategy {
             }
         }
 
-        private long getQuoteCount() {
+        private synchronized long getQuoteCount() {
             return quoteCount;
+        }
+
+        private void ensureWritable() throws IOException {
+            if (closed || failed) {
+                throw new IOException("Jour ferme ou invalide, publication interdite");
+            }
         }
 
         private void writeFrame(String type, long timestampMs, double bid, double ask,
                                 double bidSize, double askSize) throws IOException {
-            writer.write(type);
-            writer.write('\t');
-            writer.write(symbol);
-            writer.write('\t');
-            writer.write(Long.toString(timestampMs));
-            writer.write('\t');
-            writer.write(session);
-            writer.write('\t');
-            writer.write(Long.toString(sequence));
-            writer.write('\t');
-            writer.write(Double.toString(bid));
-            writer.write('\t');
-            writer.write(Double.toString(ask));
-            writer.write('\t');
-            writer.write(Double.toString(bidSize));
-            writer.write('\t');
-            writer.write(Double.toString(askSize));
-            writer.newLine();
+            writer.write(type + "\t" + symbol + "\t" + timestampMs + "\t" + session + "\t"
+                    + sequence + "\t" + bid + "\t" + ask + "\t" + bidSize + "\t" + askSize + "\n");
         }
     }
 }

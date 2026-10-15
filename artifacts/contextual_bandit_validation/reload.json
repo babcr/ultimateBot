@@ -619,10 +619,10 @@
   ],
   "policy_changes": 8,
   "provenance": {
-    "data_source": "D:\\jforex_history",
+    "data_source": "C:\\jforex_history",
     "end_date": "2020-01-02T02:00:00.938000+00:00",
     "environment": "backtest",
-    "history": "D:\\jforex_history",
+    "history": "C:\\jforex_history",
     "source": "backtest_executed",
     "start_date": "2020-01-02T00:00:01.022000+00:00",
     "trace_digest": "02a96a10efcb8e94a705bd1a4a9879dccea9d41e6a45a7fc03720e400d3d4e6a",

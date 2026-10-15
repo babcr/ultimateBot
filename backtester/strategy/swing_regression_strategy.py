@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from math import isfinite
 from typing import Any
 
-from ultimateBot.backtester.config.backtest_config import DEFAULT_CANDLE_INTERVAL
 from ultimateBot.backtester.data.batcher import TickBatch
 from ultimateBot.backtester.market.candle_builder import Candle
 from ultimateBot.backtester.strategy.signal import Signal, SignalEntryMode, SignalSide
 from ultimateBot.backtester.strategy.strategy_context import StrategyContext
-from ultimateBot.backtester.strategy.structure_decision_engine import _rolling_atr
+from ultimateBot.backtester.strategy.structure_decision_engine import SWING_PRICE_SOURCES, _candle_context, _rolling_atr
+from ultimateBot.backtester.strategy.swing_regression_config import (
+    DEFAULT_SWING_REGRESSION_CONFIG, SwingRegressionConfig,
+)
 from ultimateBot.backtester.strategy.swing_regression_decision_engine import (
     decide_swing_regression, resolve_swing_regression_rules, select_swing_window,
 )
@@ -70,9 +73,17 @@ class SwingRegressionStrategy(SwingStrategy):
 
     def __init__(
         self, regression_rules: dict[str, Any] | None = None,
-        minimum_candles: int | None = None, analysis_interval: timedelta = DEFAULT_CANDLE_INTERVAL,
+        minimum_candles: int | None = None, analysis_interval: timedelta | None = None,
+        *, config: SwingRegressionConfig | None = None,
     ):
-        resolved_rules = resolve_swing_regression_rules(regression_rules)
+        self.config = config if config is not None else DEFAULT_SWING_REGRESSION_CONFIG
+        configured_rules = self.config.to_rules()
+        configured_rules.update({key: value for key, value in (regression_rules or {}).items() if value is not None})
+        resolved_rules = resolve_swing_regression_rules(configured_rules)
+        if minimum_candles is None:
+            minimum_candles = self.config.execution.minimum_candles
+        if analysis_interval is None:
+            analysis_interval = self.config.volatility.candle_interval
         regression_lookback = int(resolved_rules["regression_lookback_bars"])
         required_candles = max(int(minimum_candles or 2), regression_lookback)
         if resolved_rules["regression_require_level_reaction"]:
@@ -90,6 +101,13 @@ class SwingRegressionStrategy(SwingStrategy):
                 )
             required_candles = max(required_candles, global_capacity)
         super().__init__(resolved_rules, required_candles, analysis_interval)
+        # Snapshot of effective startup inputs. Adaptive per-symbol settings
+        # continue to use their existing dedicated setters.
+        self.config = replace(
+            self.config.with_rules(resolved_rules),
+            volatility=replace(self.config.volatility, candle_interval=self.analysis_interval),
+            execution=replace(self.config.execution, minimum_candles=minimum_candles),
+        )
         self.regression_rules = self.structure_rules
         self._minimum_candles_override = minimum_candles
         # Higher-timeframe confirmation keeps its startup configuration.
@@ -286,10 +304,10 @@ class SwingRegressionStrategy(SwingStrategy):
         current_price = float(mid_frame["close"].iloc[-1])
         market_volatility_ratio = market_volatility_atr / max(abs(current_price), point_size, 1e-9)
         oldest_candle_anchor_candidates = [
-            {"kind": "high", "price": float(mid_frame["high"].iloc[regression_start]), "index": regression_start,
-             "source": "lookback_boundary", "label": "oldest_candle_high"},
-            {"kind": "low", "price": float(mid_frame["low"].iloc[regression_start]), "index": regression_start,
-             "source": "lookback_boundary", "label": "oldest_candle_low"},
+            {"kind": kind, "price": float(frames[SWING_PRICE_SOURCES[kind]][kind].iloc[regression_start]),
+             "index": regression_start, "source": "lookback_boundary",
+             "price_source": SWING_PRICE_SOURCES[kind], "label": "oldest_candle_" + kind}
+            for kind in ("high", "low")
         ]
         decision, analysis = decide_swing_regression(
             swings,
@@ -306,6 +324,11 @@ class SwingRegressionStrategy(SwingStrategy):
             level_atr=level_atr,
             regression_source_atrs=regression_source_atrs,
             level_source_atrs=level_source_atrs,
+            candle_contexts=(
+                {source: _candle_context(frames[source], regression_source_atrs[source], rules)
+                 for source in ("bid", "ask")}
+                if require_fresh_swings and rules["regression_require_candle_confirmation"] else None
+            ),
         )
         analysis["symbol"] = symbol
         analysis["closed_at"] = latest_closed
@@ -528,6 +551,8 @@ class SwingRegressionStrategy(SwingStrategy):
                 f"score={analysis['trend_score']:.4f} direction={analysis['direction']} "
                 f"r2_anchored={anchored_line.get('r_squared')} r2_floating={floating_line.get('r_squared')} "
                 f"level_reaction={analysis.get('level_reaction_passed')} "
+                f"candle_confirmation={analysis.get('candle_confirmation_passed')} "
+                f"body_ratio={(analysis.get('confirmation_candle') or {}).get('body_ratio')} "
                 f"entry_style={(analysis.get('entry_level_reaction') or {}).get('style')} "
                 f"entry_level={((analysis.get('entry_level_reaction') or {}).get('level') or {}).get('price')} "
                 f"reason={','.join(analysis['reasons'])}{global_suffix}",

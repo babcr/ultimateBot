@@ -57,7 +57,7 @@ def reflected(swings):
 
 def candle_ticks(index, symbol="TEST", direction=1, bullish=None):
     base = 100.0 + direction * 0.2 * index
-    color = (1 if index % 2 == 0 else -1) if bullish is None else (1 if bullish else -1)
+    color = (1 if index % 2 == 1 else -1) if bullish is None else (1 if bullish else -1)
     start = START + timedelta(minutes=index)
     prices = ((0, base), (1, base), (10, base + 1.5),
               (20, base - 1.5), (50, base + color))
@@ -167,7 +167,7 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertEqual(analysis["reasons"], ["insufficient_parallelism"])
 
     def test_trigger_swing_must_stay_close_to_its_family_regression_line(self):
-        trigger = {**swing("high", 29, 104.9), "source": "ask"}
+        trigger = {**swing("low", 29, 102.9), "source": "ask"}
         swings = rising_channel() + [trigger]
         decision, analysis = decide_swing_regression(
             swings, 111.0, 2.0, 30,
@@ -183,7 +183,7 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertIsNotNone(decision)
         self.assertEqual(len(analysis["trigger_swings"]), 1)
         self.assertAlmostEqual(analysis["trigger_swings"][0]["distance_atr"], 0.0)
-        far_trigger = {**swing("high", 29, 108.9), "source": "ask"}
+        far_trigger = {**swing("low", 29, 106.9), "source": "ask"}
         decision, analysis = decide_swing_regression(
             rising_channel() + [far_trigger], 111.0, 2.0, 30,
             {"level_lookback_bars": 30, "protective_stop_buffer_atr": 0.25,
@@ -198,8 +198,8 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertIsNone(decision)
         self.assertEqual(analysis["reasons"], ["trigger_swing_too_far_from_regression"])
 
-    def test_buy_trigger_must_come_from_ask_curve(self):
-        wrong_trigger = {**swing("low", 29, 102.9), "source": "bid"}
+    def test_buy_trigger_must_come_from_ask_low(self):
+        wrong_trigger = {**swing("high", 29, 104.9), "source": "bid"}
         decision, analysis = decide_swing_regression(
             rising_channel() + [wrong_trigger],
             111.0,
@@ -218,7 +218,7 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertEqual(analysis["expected_trigger_source"], "ask")
         self.assertEqual(analysis["reasons"], ["trigger_swings_filtered"])
 
-        good_trigger = {**swing("high", 29, 104.9), "source": "ask"}
+        good_trigger = {**swing("low", 29, 102.9), "source": "ask"}
         decision, analysis = decide_swing_regression(
             rising_channel() + [good_trigger],
             111.0,
@@ -236,9 +236,9 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertIsNotNone(decision)
         self.assertEqual(analysis["expected_trigger_source"], "ask")
 
-    def test_sell_trigger_must_come_from_bid_curve(self):
+    def test_sell_trigger_must_come_from_bid_high(self):
         sell_swings = reflected(rising_channel())
-        wrong_trigger = {**swing("high", 29, 107.1), "source": "ask"}
+        wrong_trigger = {**swing("low", 29, 105.1), "source": "ask"}
         decision, analysis = decide_swing_regression(
             sell_swings + [wrong_trigger],
             99.0,
@@ -257,7 +257,7 @@ class SwingRegressionDecisionTests(unittest.TestCase):
         self.assertEqual(analysis["expected_trigger_source"], "bid")
         self.assertEqual(analysis["reasons"], ["trigger_swings_filtered"])
 
-        good_trigger = {**swing("low", 29, 105.1), "source": "bid"}
+        good_trigger = {**swing("high", 29, 107.1), "source": "bid"}
         decision, analysis = decide_swing_regression(
             sell_swings + [good_trigger],
             99.0,
@@ -361,9 +361,10 @@ class SwingRegressionDecisionTests(unittest.TestCase):
             swing("low", 0, 100.0),
             swing("high", 5, 102.0),
             swing("low", 10, 100.4),
-            swing("high", 20, 101.2),
-            swing("low", 25, 101.0),
-            swing("high", 29, 103.0),
+            swing("high", 15, 103.0),
+            swing("low", 20, 101.0),
+            swing("high", 25, 101.2),
+            swing("low", 29, 103.0),
         ]
         trigger = [points[-1]]
         decision, analysis = decide_swing_regression(
@@ -436,7 +437,7 @@ class SwingRegressionDecisionTests(unittest.TestCase):
             {"kind": "low", "price": 99.0, "index": 0, "source": "lookback_boundary", "label": "oldest_candle_low"},
         ]
         decision, analysis = decide_swing_regression(
-            [{**swing("low", 1, 100.0), "source": "bid"}],
+            [{**swing("low", 1, 100.0), "source": "ask"}],
             102.0,
             2.0,
             2,
@@ -710,24 +711,24 @@ class SwingRegressionDecisionTests(unittest.TestCase):
     def test_recent_swing_protection_stays_on_adverse_graph_after_trigger_filtering(self):
         cases = (
             (
-                [{**item, "source": "ask" if item["kind"] == "high" else "bid"} for item in rising_channel()]
-                + [{**swing("high", 29, 104.9), "source": "ask"}],
+                [{**item, "source": "bid" if item["kind"] == "high" else "ask"} for item in rising_channel()]
+                + [{**swing("low", 29, 102.9), "source": "ask"}],
                 111.0,
                 "buy",
                 "ask",
-                "bid",
+                "ask",
                 "low",
-                102.0,
+                102.9,
             ),
             (
-                [{**item, "source": "ask" if item["kind"] == "high" else "bid"} for item in reflected(rising_channel())]
-                + [{**swing("low", 29, 105.1), "source": "bid"}],
+                [{**item, "source": "bid" if item["kind"] == "high" else "ask"} for item in reflected(rising_channel())]
+                + [{**swing("high", 29, 107.1), "source": "bid"}],
                 100.0,
                 "sell",
                 "bid",
-                "ask",
+                "bid",
                 "high",
-                108.0,
+                107.1,
             ),
         )
         for points, price, side, trigger_source, protective_source, protective_kind, expected_price in cases:
@@ -835,7 +836,7 @@ class SwingRegressionStrategyTests(unittest.TestCase):
         self.assertEqual(signals[0].side, SignalSide.BUY)
         self.assertEqual(signals[0].timestamp, previous_tick.timestamp)
         analysis = strategy.last_analysis["TEST"]
-        self.assertAlmostEqual(analysis["current_price"], 104.8)
+        self.assertAlmostEqual(analysis["current_price"], 106.8)
         self.assertLess(analysis["anchor"]["price"], 110.0)
         self.assertEqual(analysis["fresh_swings"][0]["index"], 29)
         self.assertEqual(strategy.on_market_data(batch, context), [])
@@ -847,16 +848,16 @@ class SwingRegressionStrategyTests(unittest.TestCase):
         self.assertEqual(len(strategy.on_market_data(TickBatch("TEST", [candle_ticks(29)[-1]]), context)), 1)
         for tick in candle_ticks(30):
             context.market_state.update(tick)
-        context.market_state.update(candle_ticks(31, bullish=True)[0])
+        context.market_state.update(candle_ticks(31, bullish=False)[0])
         second_signals = strategy.on_market_data(TickBatch("TEST", [candle_ticks(30)[-1]]), context)
         self.assertEqual(second_signals, [])
         self.assertEqual(strategy.last_analysis["TEST"]["expected_trigger_source"], "ask")
         self.assertEqual(strategy.last_analysis["TEST"]["reasons"], ["trigger_swings_filtered"])
-        for tick in candle_ticks(31, bullish=True):
+        for tick in candle_ticks(31, bullish=False):
             context.market_state.update(tick)
         context.market_state.update(candle_ticks(32)[0])
-        # Two consecutive bullish candles confirm no new pivot, although all window indices shifted.
-        self.assertEqual(strategy.on_market_data(TickBatch("TEST", [candle_ticks(31, bullish=True)[-1]]), context), [])
+        # Two consecutive bearish candles confirm no new pivot, although all window indices shifted.
+        self.assertEqual(strategy.on_market_data(TickBatch("TEST", [candle_ticks(31, bullish=False)[-1]]), context), [])
         self.assertEqual(strategy._analysis_windows, 2)
 
     def test_short_lookback_still_produces_analysis(self):
@@ -1131,8 +1132,8 @@ class SwingRegressionStrategyTests(unittest.TestCase):
         structure_swings = structure._build_shared_structure_swings(frames["bid"], frames["ask"], 0.01)
         self.assertTrue(regression_swings)
         self.assertEqual(regression_swings, structure_swings)
-        self.assertEqual({item["source"] for item in regression_swings if item["kind"] == "low"}, {"bid"})
-        self.assertEqual({item["source"] for item in regression_swings if item["kind"] == "high"}, {"ask"})
+        self.assertEqual({item["source"] for item in regression_swings if item["kind"] == "low"}, {"ask"})
+        self.assertEqual({item["source"] for item in regression_swings if item["kind"] == "high"}, {"bid"})
 
     def test_cli_selects_new_engine_and_preserves_structure_default(self):
         with patch.object(sys, "argv", ["run_backtest"]):

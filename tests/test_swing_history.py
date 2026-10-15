@@ -67,7 +67,8 @@ class SwingHistoryTests(unittest.TestCase):
                 state.update(Tick(START + timedelta(minutes=minute, seconds=offset),
                                   "EURUSD", bid, bid + 0.2, 1, 1))
         state.update(Tick(START + timedelta(minutes=5), "EURUSD", 100, 100.2, 1, 1))
-        for lookback, expected_price, expected_index in ((5, 90, 1), (4, 98, 3), (2, 98, 1), (5, 90, 1)):
+        # Les lows sont des prix ask : le spread de 0.2 est inclus.
+        for lookback, expected_price, expected_index in ((5, 90.2, 1), (4, 98.2, 3), (2, 98.2, 1), (5, 90.2, 1)):
             with self.subTest(lookback=lookback):
                 swings, _ = self.project(strategy, state, "EURUSD", lookback)
                 self.assertEqual([(s["kind"], s["price"], s["index"]) for s in swings],

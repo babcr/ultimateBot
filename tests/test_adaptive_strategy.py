@@ -26,6 +26,7 @@ from ultimateBot.backtester.strategy.signal import Signal, SignalSide
 from ultimateBot.backtester.strategy.strategy import Strategy
 from ultimateBot.backtester.strategy.strategy_context import StrategyContext
 from ultimateBot.backtester.strategy.structure_strategy import StructureStrategy
+from ultimateBot.backtester.strategy.swing_regression_config import SwingRegressionConfig
 from ultimateBot.backtester.strategy.swing_regression_strategy import SwingRegressionStrategy
 from ultimateBot.run_backtest import (
     build_engine, parse_args, resolve_backtest_adaptive_choice_values,
@@ -990,11 +991,17 @@ class AdaptiveIntegrationTests(unittest.TestCase):
                                             timeframe_min_minutes=5,
                                             timeframe_max_minutes=31,
                                             timeframe_step_minutes=5)
-        with patch("ultimateBot.run_backtest.DEFAULT_ADAPTIVE_CONFIG", configured), patch.object(
-            sys, "argv", ["run_backtest", "--strategy", "swing-regression", "--adaptive-strategy"],
+        config = SwingRegressionConfig()
+        regression_config = replace(config, optimization=replace(config.optimization, adaptive=configured))
+        for strategy, constant, defaults in (
+            ("structure", "DEFAULT_ADAPTIVE_CONFIG", configured),
+            ("swing-regression", "DEFAULT_SWING_REGRESSION_CONFIG", regression_config),
         ):
-            engine = build_engine([], parse_args())
-        self.assertEqual(engine.adaptive_optimizer.config, configured)
+            with self.subTest(strategy=strategy), patch("ultimateBot.run_backtest." + constant, defaults), patch.object(
+                sys, "argv", ["run_backtest", "--strategy", strategy, "--adaptive-strategy"],
+            ):
+                engine = build_engine([], parse_args())
+            self.assertEqual(engine.adaptive_optimizer.config, configured)
 
     def test_cli_accepts_individual_bound_overrides_and_keeps_other_defaults(self):
         for option, field, value in (("--adaptive-lookback-min", "lookback_min", 10),

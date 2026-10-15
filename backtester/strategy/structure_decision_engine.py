@@ -7,6 +7,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+# Les achats suivent les lows ask ; les ventes suivent les highs bid.
+SWING_PRICE_SOURCES = {"low": "ask", "high": "bid"}
+
 
 LIMIT_ENTRY_STYLES = frozenset(
     {
@@ -76,9 +79,9 @@ DEFAULT_STRUCTURE_RULES = {
     "min_rr_ratio": 1.4,
     # Source prioritaire du niveau protecteur: `structure_level` garde le stop sur le niveau qui porte
     # le setup (support/retest/resistance), `recent_swing` privilegie le dernier retournement local.
-    "protective_level_source": "structure_level",
+    "protective_level_source": "structure_level", # structure_level or recent_swing
     # Recul supplementaire du stop, en multiples d'ATR, pour les deux sources de protection.
-    "protective_stop_buffer_atr": 2.5,
+    "protective_stop_buffer_atr": 1.5,
     # Distance minimale restante jusqu'a l'objectif structurel pour accepter l'entree.
     "min_target_distance_atr": 0.25,
     # Marge minimale buy-vs-sell pour sortir de l'indecision structurelle pure.
@@ -92,7 +95,7 @@ DEFAULT_STRUCTURE_RULES = {
     # Poids du decideur de structure dans la fusion finale avec le signal de base.
     "overlay_weight": 1.0,
     # Taille minimale du corps d'une bougie (vs range) pour compter comme vraie confirmation haussiere/baissiere.
-    "confirmation_body_ratio": 0.68,
+    "confirmation_body_ratio": 0.08,
     # Taille maximale du corps (vs range) pour classer une bougie en doji.
     "doji_body_ratio": 0.18,
     # Autorise le decideur de structure a creer une entree meme si le signal amont est neutre.
@@ -355,24 +358,15 @@ def merge_structure_reversal_swings(
     point_size: float,
     config: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    shared_swings = [
-        {**swing, "source": "bid"}
-        for swing in collect_structure_swings(
-            candles=bid_candles,
-            point_size=point_size,
-            config=config,
-            kind="low",
+    frames = {"bid": bid_candles, "ask": ask_candles}
+    shared_swings = []
+    for kind, source in SWING_PRICE_SOURCES.items():
+        shared_swings.extend(
+            {**swing, "source": source}
+            for swing in collect_structure_swings(
+                candles=frames[source], point_size=point_size, config=config, kind=kind,
+            )
         )
-    ]
-    shared_swings.extend(
-        {**swing, "source": "ask"}
-        for swing in collect_structure_swings(
-            candles=ask_candles,
-            point_size=point_size,
-            config=config,
-            kind="high",
-        )
-    )
     return _normalize_swings(shared_swings)
 
 

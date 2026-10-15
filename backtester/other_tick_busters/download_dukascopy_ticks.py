@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Télécharge l'historique Dukascopy en parquet mensuel sous D:\\ticks.
+"""Télécharge l'historique Dukascopy en parquet mensuel sous C:\\ticks.
 
 Disposition écrite par défaut:
-    D:\\ticks\\EURUSD\\2020\\01.parquet
+    C:\\ticks\\EURUSD\\2020\\01.parquet
 
 Chaque fichier contient des quote ticks FX compressés en points entiers:
     - timestamp_ms: horodatage UTC en millisecondes
@@ -121,7 +121,8 @@ def _point_scale(symbol: str) -> int:
 def _timestamp_ms(moment: datetime) -> int:
     if moment.tzinfo is None or moment.utcoffset() is None:
         raise ValueError("Horodatage naïf inattendu")
-    return int(moment.timestamp() * 1000)
+    delta = moment.astimezone(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return (delta.days * 86_400 + delta.seconds) * 1000 + delta.microseconds // 1000
 
 
 def _target_file(output_dir: Path, symbol: str, month_start: datetime) -> Path:

@@ -43,7 +43,7 @@ class DukascopyLiveConsumer:
     Utilisation typique:
 
         consumer = DukascopyLiveConsumer(
-            bridge_dir="D:\\jforex_live",
+            bridge_dir="C:\\jforex_live",
             symbols=["EURUSD", "GBPUSD", "BTCUSD"],
         )
         consumer.register_quote_handler("EURUSD", handle_eurusd_quote)

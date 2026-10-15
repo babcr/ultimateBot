@@ -7,41 +7,24 @@ from typing import Any
 import numpy as np
 
 from ultimateBot.backtester.strategy.structure_decision_engine import (
-    DEFAULT_STRUCTURE_RULES, _normalize_swings, build_structure_levels, resolve_structure_rules,
+    SWING_PRICE_SOURCES, _normalize_swings, build_structure_levels, resolve_structure_rules,
+)
+from ultimateBot.backtester.strategy.swing_regression_config import (
+    DEFAULT_SWING_REGRESSION_CONFIG, SwingRegressionConfig,
 )
 
 
-DEFAULT_SWING_REGRESSION_RULES = {
-    # None keeps legacy commands/configurations on the level window until
-    # an independent regression lookback is explicitly supplied.
-    "regression_lookback_bars": None,
-    "regression_min_swings_per_side": 2,
-    "regression_score_threshold": 0.5,
-    # Shared drift per candle, in ATR units: reaching this reference gives tanh(1).
-    "regression_slope_scale_atr": 0.3, # 0.43 optimal
-    "regression_use_global_timeframe_validation": True,
-    "regression_global_timeframe_multiplier": 2,
-    "regression_global_signal_lookback_bars": 5,
-    "regression_global_reference_slope_threshold_atr": 0.3,
-    "regression_global_min_parallelism": 0.5,
-    "regression_market_volatility_window_bars": 30,
-    "regression_min_market_volatility_ratio": 0.0001, # 0.002 optimal
-    "regression_line_max_volatility_atr": 1.6,
-    "regression_trigger_max_distance_atr": 5.3,
-    "regression_require_level_reaction": True,
-    "regression_min_consecutive_swing_distance_atr": 1.,
-    "regression_max_filtered_consecutive_swing_pair_density": .3,
-    "regression_max_swing_density": 1.,
-    "regression_min_parallelism": .5,
-    "regression_live_analysis": False,
-}
+# Public compatibility view; defaults now live in the grouped configuration.
+DEFAULT_SWING_REGRESSION_RULES = DEFAULT_SWING_REGRESSION_CONFIG.to_rules()
 
 
-def resolve_swing_regression_rules(config: dict[str, Any] | None = None) -> dict[str, Any]:
+def resolve_swing_regression_rules(config: dict[str, Any] | SwingRegressionConfig | None = None) -> dict[str, Any]:
+    if isinstance(config, SwingRegressionConfig):
+        config = config.to_rules()
     overrides = {key: value for key, value in (config or {}).items() if value is not None}
     rules = resolve_structure_rules({**DEFAULT_SWING_REGRESSION_RULES, **overrides})
     # This branch fits the exact requested window for the regression analysis.
-    rules["level_lookback_bars"] = max(2, int(overrides.get("level_lookback_bars", DEFAULT_STRUCTURE_RULES["level_lookback_bars"])))
+    rules["level_lookback_bars"] = max(2, int(overrides.get("level_lookback_bars", DEFAULT_SWING_REGRESSION_RULES["level_lookback_bars"])))
     rules["regression_lookback_bars"] = max(2, int(
         overrides.get("regression_lookback_bars", rules["level_lookback_bars"])
     ))
@@ -117,6 +100,7 @@ def resolve_swing_regression_rules(config: dict[str, Any] | None = None) -> dict
         else float(DEFAULT_SWING_REGRESSION_RULES["regression_min_parallelism"])
     )
     rules["regression_live_analysis"] = bool(rules["regression_live_analysis"])
+    rules["regression_require_candle_confirmation"] = bool(rules["regression_require_candle_confirmation"])
     rules["regression_require_level_reaction"] = bool(rules["regression_require_level_reaction"])
     return rules
 
@@ -154,6 +138,7 @@ def historical_family_candidates(
         dict(candidate)
         for candidate in (historical_anchor_candidates or [])
         if candidate.get("kind") == kind
+        and inferred_swing_source(candidate) == SWING_PRICE_SOURCES[kind]
         and "index" in candidate
         and "price" in candidate
         and isfinite(float(candidate["price"]))
@@ -166,7 +151,8 @@ def select_reference_anchor(
 ) -> dict[str, Any] | None:
     candidates: list[dict[str, Any]] = []
     for kind in ("high", "low"):
-        family = [swing for swing in swings if swing.get("kind") == kind]
+        family = [swing for swing in swings if swing.get("kind") == kind
+                  and inferred_swing_source(swing) == SWING_PRICE_SOURCES[kind]]
         historical_family = historical_family_candidates(kind, historical_anchor_candidates)
         if family and len(family) + len(historical_family) >= minimum_points:
             candidates.extend(family)
@@ -254,16 +240,21 @@ def swing_key(swing: dict[str, Any]) -> tuple[str, int, float]:
 
 def inferred_swing_source(swing: dict[str, Any]) -> str | None:
     source = swing.get("source")
+    price_source = swing.get("price_source")
     if source is not None:
         normalized = str(source).strip().lower()
         if normalized in {"ask", "bid"}:
+            if price_source is not None and str(price_source).strip().lower() != normalized:
+                return None
             return normalized
+        if normalized != "lookback_boundary":
+            return None
+    if price_source is not None:
+        normalized = str(price_source).strip().lower()
+        return normalized if normalized in {"ask", "bid"} else None
+    # Les appels historiques sans metadonnees utilisent la convention de famille.
     kind = str(swing.get("kind", "")).strip().lower()
-    if kind == "high":
-        return "ask"
-    if kind == "low":
-        return "bid"
-    return None
+    return SWING_PRICE_SOURCES.get(kind)
 
 
 def filter_close_consecutive_swing_pairs(
@@ -390,13 +381,14 @@ def select_swing_window(
                 and ("pair_range" not in swing or int(swing["index"]) > start)
                 and isfinite(float(swing["price"]))]
     if not any("pair_range" in swing for swing in selected):
-        return selected
+        return [swing for swing in selected
+                if inferred_swing_source(swing) == SWING_PRICE_SOURCES[swing["kind"]]]
     shared: list[dict[str, Any]] = []
-    for source, kind in (("bid", "low"), ("ask", "high")):
+    for kind, source in SWING_PRICE_SOURCES.items():
         denominator = max(float((source_atrs or {}).get(source, atr)), 1e-9)
         candidates = []
         for swing in selected:
-            if swing.get("source") != source:
+            if inferred_swing_source(swing) != source:
                 continue
             pair_range = float(swing.pop("pair_range"))
             candidates.append({**swing, "strength": pair_range / denominator})
@@ -413,14 +405,9 @@ def evaluate_trigger_level_reactions(
     level_window_start: int = 0,
     level_source_atrs: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
-    """Match the entry leg to a level established before its opposite pivot.
-
-    Buys still trigger on ask highs and sells on bid lows. The preceding
-    opposite pivot must touch an existing level, then the closed mid price
-    must leave that level's reaction zone in the regression direction.
-    """
-    origin_kind = "low" if side == "buy" else "high"
-    trigger_kind = "high" if side == "buy" else "low"
+    """Match a low buy / high sell to a level established before that pivot."""
+    trigger_kind = "low" if side == "buy" else "high"
+    approach_kind = "high" if side == "buy" else "low"
     sign = 1.0 if side == "buy" else -1.0
     zone = float(rules["entry_distance_atr"]) * atr
     evaluations: list[dict[str, Any]] = []
@@ -434,11 +421,7 @@ def evaluate_trigger_level_reactions(
         evaluations.append(evaluation)
         if trigger.get("kind") != trigger_kind:
             continue
-        origins = [swing for swing in swings if swing.get("kind") == origin_kind
-                   and int(swing["index"]) < int(trigger["index"])]
-        if not origins:
-            continue
-        origin = max(origins, key=lambda swing: int(swing["index"]))
+        origin = trigger
         evaluation["origin"] = dict(origin)
         origin_price = float(origin["price"])
         # The price must approach from the support/resistance side. A move
@@ -450,7 +433,7 @@ def evaluate_trigger_level_reactions(
                 if 0 <= approach_index < len(candle_closes) else None
             )
         else:
-            approaches = [swing for swing in swings if swing.get("kind") == trigger_kind
+            approaches = [swing for swing in swings if swing.get("kind") == approach_kind
                           and int(swing["index"]) < int(origin["index"])]
             approach_price = (
                 float(max(approaches, key=lambda swing: int(swing["index"]))["price"])
@@ -482,8 +465,6 @@ def evaluate_trigger_level_reactions(
             evaluation["reason"] = "level_approached_from_wrong_side"
             continue
         evaluation["reason"] = "level_zone_not_exited"
-        if sign * (float(trigger["price"]) - origin_price) <= 0.0:
-            continue
         exited_levels = [level for level in touching_levels
                          if sign * (current_price - float(level["price"])) > zone]
         if not exited_levels:
@@ -512,6 +493,7 @@ def decide_swing_regression(
     level_atr: float | None = None,
     regression_source_atrs: dict[str, float] | None = None,
     level_source_atrs: dict[str, float] | None = None,
+    candle_contexts: dict[str, dict[str, float]] | None = None,
 ) -> tuple[SwingRegressionDecision | None, dict[str, Any]]:
     rules = resolve_swing_regression_rules(config)
     analysis: dict[str, Any] = {
@@ -550,6 +532,11 @@ def decide_swing_regression(
         "level_reaction_applied": False, "level_reaction_passed": None,
         "level_reaction_distance_atr": rules["entry_distance_atr"],
         "trigger_level_reactions": [], "entry_level_reaction": None,
+        "candle_confirmation_enabled": rules["regression_require_candle_confirmation"],
+        "confirmation_body_ratio": rules["confirmation_body_ratio"],
+        "candle_confirmation_applied": False, "candle_confirmation_passed": None,
+        "confirmation_candle": None,
+        "candle_confirmation_price_source": None, "candle_confirmation_direction": None,
         "trigger_swings": [], "reasons": [],
     }
     if not rules["enabled"]:
@@ -657,14 +644,17 @@ def decide_swing_regression(
             swing_key(swing)
             for swing in clean_swings
         }
-        expected_trigger_source = "ask" if side == "buy" else "bid"
+        expected_trigger_kind = "low" if side == "buy" else "high"
+        expected_trigger_source = SWING_PRICE_SOURCES[expected_trigger_kind]
         analysis["expected_trigger_source"] = expected_trigger_source
+        analysis["expected_trigger_kind"] = expected_trigger_kind
         available_line_kinds = {anchored.kind}
         if floating is not None:
             available_line_kinds.add(floating.kind)
         trigger_candidates = [dict(swing) for swing in trigger_swings
                               if swing_key(swing) in surviving_swing_keys
                               if inferred_swing_source(swing) == expected_trigger_source
+                              if swing.get("kind") == expected_trigger_kind
                               if swing.get("kind") in available_line_kinds
                               and isfinite(float(swing["price"]))]
         trigger_blocking_pairs = filtered_pairs_before_triggers(filtered_pairs, trigger_candidates)
@@ -703,6 +693,23 @@ def decide_swing_regression(
                 return None, analysis
             analysis["level_reaction_passed"] = True
             analysis["entry_level_reaction"] = reaction
+        if rules["regression_require_candle_confirmation"]:
+            analysis["candle_confirmation_applied"] = True
+            analysis["candle_confirmation_passed"] = False
+            # Le low ask confirme l'achat sur une bougie haussiere ; le high bid
+            # confirme la vente sur une bougie baissiere.
+            analysis["candle_confirmation_price_source"] = expected_trigger_source
+            analysis["candle_confirmation_direction"] = "bullish" if side == "buy" else "bearish"
+            candle_context = (candle_contexts or {}).get(expected_trigger_source)
+            if candle_context is None:
+                analysis["reasons"] = ["missing_confirmation_candle"]
+                return None, analysis
+            analysis["confirmation_candle"] = dict(candle_context)
+            confirmation_key = "bullish_confirmation" if side == "buy" else "bearish_confirmation"
+            if not candle_context.get(confirmation_key, 0.0):
+                analysis["reasons"] = ["trigger_candle_not_confirmed"]
+                return None, analysis
+            analysis["candle_confirmation_passed"] = True
     protective_kind = "low" if side == "buy" else "high"
     protective_line = anchored if anchored.kind == protective_kind else floating
     protective_price = float("nan") if protective_line is None else protective_line.price_at(bar_count - 1)

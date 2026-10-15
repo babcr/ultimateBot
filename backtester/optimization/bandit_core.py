@@ -17,7 +17,7 @@ from ultimateBot.backtester.optimization.adaptive_strategy import AdaptiveStrate
 FEATURE_VERSION = "quote-volumes-closed-window-atr-slope-v1"
 ACTION_VERSION = "lookback-trailing-extra-atr-v1"
 REWARD_VERSION = "net-initial-risk-clipped-v1"
-BEHAVIOR_VERSION = "swing-regression-independent-levels-rr-trailing-v1"
+BEHAVIOR_VERSION = "swing-regression-low-ask-buy-high-bid-sell-v3"
 FEATURE_DIMENSION = 13
 
 

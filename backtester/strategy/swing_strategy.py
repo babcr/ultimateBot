@@ -12,7 +12,8 @@ from ultimateBot.backtester.market.market_state import MarketState
 from ultimateBot.backtester.strategy.strategy import Strategy
 from ultimateBot.backtester.strategy.strategy_context import StrategyContext
 from ultimateBot.backtester.strategy.structure_decision_engine import (
-    _collect_swings, _normalize_swings, _rolling_atr, merge_structure_reversal_swings, resolve_structure_rules,
+    SWING_PRICE_SOURCES, _collect_swings, _normalize_swings, _rolling_atr,
+    merge_structure_reversal_swings, resolve_structure_rules,
 )
 
 
@@ -133,8 +134,9 @@ class SwingStrategy(Strategy):
         if symbol is not None and market_state is not None:
             resolved_rules = resolve_structure_rules(rules)
             shared_swings = []
-            for source, frame, kind in (("bid", bid_frame, "low"), ("ask", ask_frame, "high")):
-                frame = frame.tail(max(int(resolved_rules["level_lookback_bars"]), 500))
+            frames = {"bid": bid_frame, "ask": ask_frame}
+            for kind, source in SWING_PRICE_SOURCES.items():
+                frame = frames[source].tail(max(int(resolved_rules["level_lookback_bars"]), 500))
                 if frame.empty:
                     continue
                 atr = _rolling_atr(frame, point_size, int(resolved_rules["level_lookback_bars"]))

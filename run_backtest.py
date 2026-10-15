@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 import argparse
 import json
-from dataclasses import fields
+import sys
+from dataclasses import fields, replace
 from datetime import date, timedelta
 from math import isfinite
 from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+   # Les imports ultimateBot.* necessitent le dossier parent du depot.
+   sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ultimateBot.backtester.config.backtest_config import (
    OrderConfig,
@@ -39,8 +44,11 @@ from ultimateBot.backtester.strategy.dummy_strategy import DummyStrategy
 from ultimateBot.backtester.strategy.structure_strategy import StructureStrategy
 from ultimateBot.backtester.strategy.swing_regression_decision_engine import resolve_swing_regression_rules
 from ultimateBot.backtester.strategy.swing_regression_strategy import SwingRegressionStrategy
+from ultimateBot.backtester.strategy.swing_regression_config import (
+   DEFAULT_SWING_REGRESSION_CONFIG, SwingRegressionConfig,
+)
 
-BASE_HISTORY_PATH = Path(r"D:\jforex_history")
+BASE_HISTORY_PATH = Path(r"C:\jforex_history")
 
 all_symbols = [
    #"BTCUSD",
@@ -88,7 +96,7 @@ def _stop_grid(value):
       raise argparse.ArgumentTypeError("Expected comma-separated ATR coefficients") from error
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(regression_config: SwingRegressionConfig | None = None) -> argparse.Namespace:
    parser = argparse.ArgumentParser(
       description="Launch tick-based trading backtest"
    )
@@ -421,6 +429,18 @@ def parse_args() -> argparse.Namespace:
       help="Require a support bounce for buys or a resistance rejection for sells before validating a fresh entry swing; enabled by default",
    )
    parser.add_argument(
+      "--regression-candle-confirmation",
+      action=argparse.BooleanOptionalAction,
+      default=DEFAULT_REGRESSION_RULES["regression_require_candle_confirmation"],
+      help="Require a directional candle confirming the entry swing (bullish ask candle for a low/buy, bearish bid candle for a high/sell); disabled by default",
+   )
+   parser.add_argument(
+      "--confirmation-body-ratio",
+      type=float,
+      default=DEFAULT_STRUCTURE_RULES["confirmation_body_ratio"],
+      help="Minimum abs(close-open)/(high-low) for candle confirmation, between 0.15 and 1 (shared by structure and optional regression confirmation)",
+   )
+   parser.add_argument(
       "--regression-trigger-max-distance-atr",
       type=float,
       default=DEFAULT_REGRESSION_RULES["regression_trigger_max_distance_atr"],
@@ -601,12 +621,22 @@ def parse_args() -> argparse.Namespace:
       help="Controls whether volatility scaling rounds up or down",
    )
 
+   # Select strategy defaults before parsing explicit options. The other engines
+   # keep their existing defaults, including the shared structure CLI options.
+   selector = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+   selector.add_argument("--strategy")
+   selection, _ = selector.parse_known_args()
+   if selection.strategy == "swing-regression" or (selection.strategy is None and regression_config is not None):
+      config = regression_config if regression_config is not None else DEFAULT_SWING_REGRESSION_CONFIG
+      parser.set_defaults(strategy="swing-regression", swing_regression_config=config, **config.to_arg_defaults())
    args = parser.parse_args()
    try:
       resolve_trailing_start_rr_ratio(args.reward_risk_ratio, args.trailing_start_rr_ratio)
       resolve_backtest_trading_schedule(args)
       if args.regression_lookback_bars is not None and args.regression_lookback_bars < 2:
          raise ValueError("--regression-lookback-bars must be at least 2")
+      if not isfinite(args.confirmation_body_ratio) or not 0.15 <= args.confirmation_body_ratio <= 1.0:
+         raise ValueError("--confirmation-body-ratio must be finite and between 0.15 and 1")
       resolve_backtest_order_config(args)
       adaptive_config = resolve_backtest_adaptive_config(args)
       bandit_config = resolve_backtest_bandit_config(args)
@@ -650,6 +680,7 @@ def resolve_backtest_trading_schedule(args: argparse.Namespace) -> TradingSchedu
       close_friday=bool(getattr(args, "close_friday", False)),
       friday_close_time=getattr(args, "friday_close_time", "23:59"),
       friday_close_timezone=getattr(args, "friday_close_timezone", "UTC"),
+      sessions=getattr(args, "trading_sessions", TradingScheduleConfig().sessions),
    )
 
 
@@ -658,7 +689,7 @@ def resolve_backtest_order_config(
 ) -> OrderConfig:
    bars = getattr(args, "order_expiration_bars", None)
    return OrderConfig(
-      execution_delay=DEFAULT_ORDER_CONFIG.execution_delay,
+      execution_delay=getattr(args, "execution_delay", DEFAULT_ORDER_CONFIG.execution_delay),
       expiration_bars=DEFAULT_ORDER_CONFIG.expiration_bars if bars is None else bars,
       candle_interval=candle_interval if candle_interval is not None else resolve_backtest_candle_interval(args),
    )
@@ -726,6 +757,7 @@ def resolve_backtest_structure_rules(args: argparse.Namespace) -> dict[str, Any]
    return resolve_structure_rules(
       {
          "level_lookback_bars": getattr(args, "level_lookback_bars", None),
+         "confirmation_body_ratio": getattr(args, "confirmation_body_ratio", DEFAULT_STRUCTURE_RULES["confirmation_body_ratio"]),
          "min_rr_ratio": getattr(args, "structure_min_rr_ratio", DEFAULT_STRUCTURE_RULES["min_rr_ratio"]),
          "protective_level_source": getattr(args, "structure_stop_source", DEFAULT_STRUCTURE_RULES["protective_level_source"]),
          "protective_stop_buffer_atr": getattr(args, "structure_stop_buffer_atr", DEFAULT_STRUCTURE_RULES["protective_stop_buffer_atr"]),
@@ -736,33 +768,47 @@ def resolve_backtest_structure_rules(args: argparse.Namespace) -> dict[str, Any]
 
 
 def resolve_backtest_regression_rules(args: argparse.Namespace) -> dict[str, Any]:
-   rules = resolve_backtest_structure_rules(args)
+   config = getattr(args, "swing_regression_config", DEFAULT_SWING_REGRESSION_CONFIG)
+   rules = config.to_rules()
+   defaults = resolve_swing_regression_rules(config)
+   for key, argument in {
+      "confirmation_body_ratio": "confirmation_body_ratio",
+      "min_rr_ratio": "structure_min_rr_ratio",
+      "protective_level_source": "structure_stop_source",
+      "protective_stop_buffer_atr": "structure_stop_buffer_atr",
+      "live_level_count": "structure_live_level_count",
+      "live_level_count_every": "structure_live_level_count_every",
+   }.items():
+      value = getattr(args, argument, None)
+      if value is not None:
+         rules[key] = value
    lookback = getattr(args, "level_lookback_bars", None)
    rules.update({
-      "level_lookback_bars": DEFAULT_REGRESSION_RULES["level_lookback_bars"] if lookback is None else lookback,
-      "regression_lookback_bars": getattr(args, "regression_lookback_bars", None),
-      "regression_score_threshold": getattr(args, "regression_score_threshold", DEFAULT_REGRESSION_RULES["regression_score_threshold"]),
-      "regression_min_parallelism": getattr(args, "regression_min_parallelism", DEFAULT_REGRESSION_RULES["regression_min_parallelism"]),
-      "regression_slope_scale_atr": getattr(args, "regression_slope_scale_atr", DEFAULT_REGRESSION_RULES["regression_slope_scale_atr"]),
+      "level_lookback_bars": defaults["level_lookback_bars"] if lookback is None else lookback,
+      "regression_lookback_bars": getattr(args, "regression_lookback_bars", rules["regression_lookback_bars"]),
+      "regression_score_threshold": getattr(args, "regression_score_threshold", defaults["regression_score_threshold"]),
+      "regression_min_parallelism": getattr(args, "regression_min_parallelism", defaults["regression_min_parallelism"]),
+      "regression_slope_scale_atr": getattr(args, "regression_slope_scale_atr", defaults["regression_slope_scale_atr"]),
       "regression_use_global_timeframe_validation": getattr(
          args,
          "regression_global_timeframe_validation",
-         DEFAULT_REGRESSION_RULES["regression_use_global_timeframe_validation"],
+         defaults["regression_use_global_timeframe_validation"],
       ),
-      "regression_global_timeframe_multiplier": getattr(args, "regression_global_timeframe_multiplier", DEFAULT_REGRESSION_RULES["regression_global_timeframe_multiplier"]),
-      "regression_global_reference_slope_threshold_atr": getattr(args, "regression_global_reference_slope_threshold_atr", DEFAULT_REGRESSION_RULES["regression_global_reference_slope_threshold_atr"]),
-      "regression_global_min_parallelism": getattr(args, "regression_global_min_parallelism", DEFAULT_REGRESSION_RULES["regression_global_min_parallelism"]),
-      "regression_global_signal_lookback_bars": getattr(args, "regression_global_signal_lookback_bars", DEFAULT_REGRESSION_RULES["regression_global_signal_lookback_bars"]),
-      "regression_market_volatility_window_bars": getattr(args, "regression_market_volatility_window_bars", DEFAULT_REGRESSION_RULES["regression_market_volatility_window_bars"]),
-      "regression_min_market_volatility_ratio": getattr(args, "regression_min_market_volatility_ratio", DEFAULT_REGRESSION_RULES["regression_min_market_volatility_ratio"]),
-      "regression_line_max_volatility_atr": getattr(args, "regression_line_max_volatility_atr", DEFAULT_REGRESSION_RULES["regression_line_max_volatility_atr"]),
-      "regression_trigger_max_distance_atr": getattr(args, "regression_trigger_max_distance_atr", DEFAULT_REGRESSION_RULES["regression_trigger_max_distance_atr"]),
-      "regression_min_consecutive_swing_distance_atr": getattr(args, "regression_min_consecutive_swing_distance_atr", DEFAULT_REGRESSION_RULES["regression_min_consecutive_swing_distance_atr"]),
-      "regression_max_filtered_consecutive_swing_pair_density": getattr(args, "regression_max_filtered_consecutive_swing_pair_density", DEFAULT_REGRESSION_RULES["regression_max_filtered_consecutive_swing_pair_density"]),
-      "regression_max_swing_density": getattr(args, "regression_max_swing_density", DEFAULT_REGRESSION_RULES["regression_max_swing_density"]),
-      "regression_min_swings_per_side": getattr(args, "regression_min_swings", DEFAULT_REGRESSION_RULES["regression_min_swings_per_side"]),
-      "regression_live_analysis": bool(getattr(args, "regression_live_analysis", False)),
-      "regression_require_level_reaction": getattr(args, "regression_level_reaction", DEFAULT_REGRESSION_RULES["regression_require_level_reaction"]),
+      "regression_global_timeframe_multiplier": getattr(args, "regression_global_timeframe_multiplier", defaults["regression_global_timeframe_multiplier"]),
+      "regression_global_reference_slope_threshold_atr": getattr(args, "regression_global_reference_slope_threshold_atr", defaults["regression_global_reference_slope_threshold_atr"]),
+      "regression_global_min_parallelism": getattr(args, "regression_global_min_parallelism", defaults["regression_global_min_parallelism"]),
+      "regression_global_signal_lookback_bars": getattr(args, "regression_global_signal_lookback_bars", defaults["regression_global_signal_lookback_bars"]),
+      "regression_market_volatility_window_bars": getattr(args, "regression_market_volatility_window_bars", defaults["regression_market_volatility_window_bars"]),
+      "regression_min_market_volatility_ratio": getattr(args, "regression_min_market_volatility_ratio", defaults["regression_min_market_volatility_ratio"]),
+      "regression_line_max_volatility_atr": getattr(args, "regression_line_max_volatility_atr", defaults["regression_line_max_volatility_atr"]),
+      "regression_trigger_max_distance_atr": getattr(args, "regression_trigger_max_distance_atr", defaults["regression_trigger_max_distance_atr"]),
+      "regression_min_consecutive_swing_distance_atr": getattr(args, "regression_min_consecutive_swing_distance_atr", defaults["regression_min_consecutive_swing_distance_atr"]),
+      "regression_max_filtered_consecutive_swing_pair_density": getattr(args, "regression_max_filtered_consecutive_swing_pair_density", defaults["regression_max_filtered_consecutive_swing_pair_density"]),
+      "regression_max_swing_density": getattr(args, "regression_max_swing_density", defaults["regression_max_swing_density"]),
+      "regression_min_swings_per_side": getattr(args, "regression_min_swings", defaults["regression_min_swings_per_side"]),
+      "regression_live_analysis": bool(getattr(args, "regression_live_analysis", defaults["regression_live_analysis"])),
+      "regression_require_level_reaction": getattr(args, "regression_level_reaction", defaults["regression_require_level_reaction"]),
+      "regression_require_candle_confirmation": getattr(args, "regression_candle_confirmation", defaults["regression_require_candle_confirmation"]),
    })
    return resolve_swing_regression_rules(rules)
 
@@ -775,6 +821,41 @@ def resolve_backtest_candle_interval(args: argparse.Namespace, fallback: Any | N
    return normalize_candle_interval(
       getattr(args, "candle_interval", default_interval),
       default=default_interval,
+   )
+
+
+def resolve_backtest_regression_config(args: argparse.Namespace) -> SwingRegressionConfig:
+   """Snapshot organisé des entrées effectives, options CLI comprises."""
+   config = getattr(args, "swing_regression_config", DEFAULT_SWING_REGRESSION_CONFIG)
+   candle_interval = resolve_backtest_candle_interval(args)
+   risk_aliases = {"risk_per_trade_percent": "risk_percent", "fixed_quantity": "quantity"}
+   risk = replace(config.risk, **{
+      item.name: getattr(args, risk_aliases.get(item.name, item.name), getattr(config.risk, item.name))
+      for item in fields(config.risk)
+   })
+   volatility = replace(config.volatility, **{
+      item.name: getattr(args, "volatility_mode" if item.name == "mode" else item.name,
+                         getattr(config.volatility, item.name))
+      for item in fields(config.volatility) if item.name != "candle_interval"
+   }, candle_interval=candle_interval)
+   order_config = resolve_backtest_order_config(args, candle_interval)
+   optimization = replace(
+      config.optimization,
+      adaptive_enabled=bool(getattr(args, "adaptive_strategy", False)),
+      adaptive=resolve_backtest_adaptive_config(args) or config.optimization.adaptive,
+      bandit=resolve_backtest_bandit_config(args),
+      **{key: getattr(args, key, getattr(config.optimization, key)) for key in (
+         "bandit_memory", "bandit_read_only", "bandit_report", "bandit_run_id", "bandit_resume",
+      )},
+   )
+   return replace(
+      config.with_rules(resolve_backtest_regression_rules(args)), risk=risk, volatility=volatility,
+      orders=replace(config.orders, execution_delay=order_config.execution_delay,
+                     expiration_bars=order_config.expiration_bars),
+      execution=replace(config.execution, balance=args.balance, batch_size=args.batch_size,
+                        trailing_stop=bool(getattr(args, "trailing_stop", False)),
+                        minimum_candles=getattr(args, "strategy_minimum_candles", config.execution.minimum_candles)),
+      schedule=resolve_backtest_trading_schedule(args), optimization=optimization,
    )
 
 
@@ -825,6 +906,8 @@ def build_engine(
             strategy = SwingRegressionStrategy(
                regression_rules=resolve_backtest_regression_rules(args),
                analysis_interval=candle_interval,
+               minimum_candles=getattr(args, "strategy_minimum_candles", None),
+               config=resolve_backtest_regression_config(args),
             )
          else:
             strategy = StructureStrategy(
@@ -1002,6 +1085,14 @@ def print_swing_regression_diagnostics(engine: BacktestEngine) -> None:
       f"  Support/resistance reaction rejections: {level_reaction_rejections} "
       f"({level_reaction_rejections / max(1, analysis_windows):.2%})"
    )
+   candle_confirmation_rejections = sum(int(reason_counts.get(reason, 0)) for reason in (
+      "trigger_candle_not_confirmed", "missing_confirmation_candle",
+   ))
+   if strategy.regression_rules["regression_require_candle_confirmation"]:
+      print(
+         f"  Candle confirmation rejections: {candle_confirmation_rejections} "
+         f"({candle_confirmation_rejections / max(1, analysis_windows):.2%})"
+      )
    if global_confirmation_rejections > 0:
       print(
          f"  Global-trend rejections: {global_confirmation_rejections} "
@@ -1183,6 +1274,8 @@ def main() -> None:
       print(f"Regression line max volatility: {regression_rules['regression_line_max_volatility_atr']} ATR")
       print(f"Regression trigger max distance: {regression_rules['regression_trigger_max_distance_atr']} ATR")
       print(f"Regression support/resistance reaction required: {regression_rules['regression_require_level_reaction']}")
+      print(f"Regression candle confirmation required: {regression_rules['regression_require_candle_confirmation']}")
+      print(f"Confirmation minimum body/range ratio: {regression_rules['confirmation_body_ratio']}")
       print(f"Regression minimum consecutive swing distance: {regression_rules['regression_min_consecutive_swing_distance_atr']} ATR")
       print(f"Regression max filtered consecutive swing pair density: {regression_rules['regression_max_filtered_consecutive_swing_pair_density']}")
       print(f"Regression max swing density: {regression_rules['regression_max_swing_density']}")

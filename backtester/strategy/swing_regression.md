@@ -2,9 +2,81 @@
 
 Le moteur `swing-regression` coexiste avec `structure`, qui reste le choix par
 défaut. Les deux stratégies partagent la construction des bougies fermées et
-l'extraction des swings : lows sur le bid, highs sur l'ask. La branche de
+l'extraction des swings : lows sur l'ask, highs sur le bid. La branche de
 régression ajuste ses droites sur ces vecteurs et réutilise le regroupement
 en niveaux structurels pour filtrer les swings d'entrée.
+
+## Configuration centralisée
+
+`swing_regression_config.py` est le point d'entrée des paramètres de la stratégie.
+L'objet `DEFAULT_SWING_REGRESSION_CONFIG` rassemble les valeurs par défaut ;
+`SwingRegressionConfig` permet de préparer une configuration propre à un run.
+Les paramètres partagés ont une interface propre à la régression : il n'est plus
+nécessaire de modifier `DEFAULT_STRUCTURE_RULES` pour régler cette stratégie.
+
+| Rubrique | Paramètres |
+| --- | --- |
+| `regression` | Fenêtre, points, score, pentes, distances, densités, volatilité de marché, filtres d'entrée et journal d'analyse. |
+| `global_timeframe` | Activation, multiplicateur et seuils de la confirmation globale. |
+| `levels` | Fenêtre des niveaux, clustering, touches, qualité et distance de réaction. |
+| `candles` | Ratios de corps pour la confirmation et les dojis. |
+| `protection` | Source du stop et marge supplémentaire en ATR. |
+| `structure_compatibility` | Autres règles héritées des helpers de structure, y compris celles sans effet en régression. |
+| `risk` | Risque, capital disponible, exposition, quantité, RR, seuil de trailing et spread. |
+| `volatility` | Intervalle commun des bougies et paramètres de volatilité du gestionnaire de risque. |
+| `orders` | Délai d'exécution et expiration en bougies. |
+| `execution` | Capital initial, taille des lots de ticks, trailing et minimum de bougies propre à la stratégie. |
+| `schedule` | Sessions, fraction d'entrée et clôture du vendredi. |
+| `optimization` | Activation et paramètres de l'adaptation, configuration et mémoire du bandit. |
+
+Les rubriques sont des dataclasses immuables. Exemple de réglage centralisé :
+
+```python
+from dataclasses import replace
+from ultimateBot.backtester.strategy.swing_regression_config import SwingRegressionConfig
+from ultimateBot.run_backtest import build_engine, parse_args
+
+config = SwingRegressionConfig()
+config = replace(
+    config,
+    regression=replace(config.regression, lookback_bars=150, score_threshold=0.65),
+    levels=replace(config.levels, level_lookback_bars=500, min_level_touches=4),
+    candles=replace(config.candles, confirmation_body_ratio=0.68),
+    protection=replace(config.protection, protective_stop_buffer_atr=1.2),
+    risk=replace(config.risk, risk_per_trade_percent=0.5),
+    orders=replace(config.orders, expiration_bars=3),
+)
+args = parse_args(regression_config=config)
+engine = build_engine(feed, args)  # feed : flux de ticks du backtest
+```
+
+Fournir une configuration à `parse_args` sélectionne `swing-regression` par
+défaut. Les options CLI explicites remplacent ses valeurs ; une autre stratégie
+explicitement sélectionnée conserve ses propres réglages. Le lancement habituel
+avec `--strategy swing-regression` utilise automatiquement
+`DEFAULT_SWING_REGRESSION_CONFIG`. Les noms historiques des options, notamment
+`--structure-stop-source` et `--structure-stop-buffer-atr`, restent acceptés.
+
+Pour construire seulement le décideur, utiliser
+`SwingRegressionStrategy(config=config)`. Pour appliquer également le risque,
+les ordres, les horaires et les optimiseurs, utiliser le lanceur comme ci-dessus.
+`volatility.candle_interval` est l'intervalle commun du marché, de la stratégie,
+du risque et des ordres. `execution.minimum_candles` concerne la stratégie,
+tandis que `volatility.minimum_candles` concerne le risque.
+
+`strategy.config` contient les entrées retenues au lancement, options CLI
+comprises. Les adaptations en cours de run par symbole restent consultables
+avec `rules_for_symbol` et les accesseurs existants. `to_rules()` produit un
+nouveau dictionnaire pour les moteurs existants ; ceux-ci conservent leurs
+normalisations, notamment les planchers de points et de ratios. La valeur de
+confirmation par défaut est `0.15`, qui était déjà la valeur effective après
+normalisation du réglage local à `0.08`.
+
+La source est contrôlée avant l'ajustement des droites : les highs marqués ask
+et les lows marqués bid sont exclus, y compris dans les vecteurs déjà normalisés
+et les candidats d'origine historiques. Les points du bord de fenêtre utilisent
+également le high bid ou le low ask de la bougie concernée. Cette convention
+s'applique à l'analyse locale et à l'unité supérieure.
 
 Depuis `C:\git`, lancement sur un historique court :
 
@@ -91,14 +163,14 @@ cours de remplissage.
 
 Le filtre est actif par défaut. Un achat exige un rebond sur support et une
 vente un rejet sur résistance. Les cassures seules ne valident pas une entrée.
-Le déclenchement conserve les highs ask pour acheter et les lows bid pour
-vendre : le filtre examine le mouvement depuis le pivot opposé précédent
-jusqu'à ce swing d'entrée.
+Un achat est déclenché par un swing low ask (bougie baissière suivie d'une
+haussière), une vente par un swing high bid (haussière suivie d'une baissière).
+Le filtre examine le pivot de ce swing d'entrée et sa clôture de confirmation.
 
-- Pour acheter, le low bid précédent doit toucher la zone d'un support
+- Pour acheter, le low ask du swing d'entrée doit toucher la zone d'un support
   préexistant, après une approche depuis le dessus. La clôture mid du swing
   d'entrée doit ressortir au-dessus de cette zone.
-- Pour vendre, le high ask précédent doit toucher la zone d'une résistance
+- Pour vendre, le high bid du swing d'entrée doit toucher la zone d'une résistance
   préexistante, après une approche depuis le dessous. La clôture mid du swing
   d'entrée doit ressortir en dessous de cette zone.
 
@@ -128,6 +200,44 @@ du niveau. Le bilan compte les refus liés aux supports/résistances.
 Ce filtre concerne les entrées locales. L'analyse de tendance de l'unité
 supérieure reste indépendante d'un rebond/rejet local. Pour comparer avec
 la régression seule, utiliser `--no-regression-level-reaction`.
+
+### Confirmation par la forme de la bougie
+
+Le paramètre structurel `confirmation_body_ratio` était hérité par la
+régression, mais ne filtrait pas ses entrées. Le contrôle est désormais
+disponible au lancement avec :
+
+```powershell
+--regression-candle-confirmation --confirmation-body-ratio 0.68
+```
+
+Sur la dernière bougie fermée qui confirme le swing, le moteur réutilise
+exactement la classification de la stratégie `structure` :
+
+- Achat sur low ask : bougie ask haussière, corps/amplitude au moins égal au
+  seuil configuré et clôture à au moins 55 % de l'amplitude depuis le low.
+- Vente sur high bid : bougie bid baissière, corps/amplitude au moins égal au
+  seuil et clôture à au plus 45 % de l'amplitude depuis le low.
+
+Le rapport est `abs(close - open) / (high - low)` : `0.68` signifie un corps
+d'au moins 68 % de l'amplitude totale. Aucun motif englobant ou marteau n'est
+imposé. La bougie précédente et celle de confirmation ont les couleurs opposées
+exigées par le détecteur de swing. Les bougies actives sont exclues ; on ne
+diffère pas le signal à une clôture ultérieure.
+
+Le contrôle est désactivé par défaut. `--no-regression-candle-confirmation`
+le désactive explicitement. Le seuil accepte une valeur finie entre `0.15`
+et `1`, comme la règle structurelle existante, et reprend sa valeur configurée
+par défaut (`0.68`). `--confirmation-body-ratio` configure aussi la stratégie
+`structure`. Avec l'adaptation, ce filtre et son seuil restent ceux du
+lancement, même lorsque le lookback change par symbole.
+
+Ce contrôle s'ajoute à la distance du swing à sa droite et, lorsqu'il est
+activé, au rebond/rejet sur support/résistance. Il ne s'applique pas à l'analyse
+de tendance de l'unité supérieure. Les analyses stockent la bougie, sa source,
+le sens de confirmation et le résultat. Le journal `--regression-live-analysis`
+affiche le rapport corps/amplitude et le résultat ; le bilan compte les refus
+`trigger_candle_not_confirmed` et `missing_confirmation_candle`.
 
 Les signaux passent par le gestionnaire de risque et l'exécution habituels :
 exposition, spread, taille, SL et TP. Une décision dans le sens de la tendance
@@ -207,4 +317,5 @@ La dernière analyse par symbole est également disponible dans
 R² et erreurs résiduelles, l'origine horodatée et les swings déclencheurs.
 Le R² décrit l'ajustement et peut être négatif pour la droite ancrée ; il ne
 constitue pas un filtre supplémentaire. Les valeurs par défaut sont dans
-`DEFAULT_SWING_REGRESSION_RULES`, dans `swing_regression_decision_engine.py`.
+`DEFAULT_SWING_REGRESSION_CONFIG`, dans `swing_regression_config.py`.
+`DEFAULT_SWING_REGRESSION_RULES` reste une vue de compatibilité en dictionnaire.
