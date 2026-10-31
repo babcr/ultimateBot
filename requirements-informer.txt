@@ -1,0 +1,4 @@
+# The upstream model is used directly; its 2020 benchmark dependency pins are not needed.
+numpy>=1.26,<3
+pandas>=2.2,<4
+torch>=2.2,<3
