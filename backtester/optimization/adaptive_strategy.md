@@ -318,3 +318,18 @@ Le pas vaut 1 par défaut. La fenêtre conserve au maximum 50 clôtures
 (minimum configurable : 1), le seuil vaut 2 % et le mode
 de baisse `relative`. `--adaptive-accuracy-drop-mode points` permet aussi une
 baisse en points de pourcentage (80 % → 75 % pour 5 points).
+
+## Reprise d'une configuration sans activité
+
+Une configuration explorée peut ne plus produire aucun ordre. Attendre une
+nouvelle clôture pour la remplacer la laisserait alors active indéfiniment.
+`--adaptive-max-idle-bars 150` déclenche une nouvelle sélection après 150 bougies
+d'analyse clôturées sans ordre admis, une fois l'adaptation amorcée, et seulement
+si le symbole n'a ni position ouverte ni ordre en attente. Un ordre admis remet
+le compteur à zéro. La même bougie n'est comptée qu'une fois ; les symboles ont
+des compteurs distincts. La configuration initiale conserve son échauffement.
+
+Le journal affiche `reason=no_trade_activity` avec l'ancien et le nouveau
+lookback. Cette reprise ne crée aucun trade artificiel et conserve les filtres
+de la stratégie. `--adaptive-max-idle-bars 0` désactive cette reprise et conserve
+le fonctionnement fondé uniquement sur les clôtures.

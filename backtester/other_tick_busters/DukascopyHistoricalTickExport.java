@@ -40,13 +40,13 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     private static final long DAY_MS = Period.DAILY.getInterval();
 
     @Configurable("Instruments CSV")
-    public String instrumentsCsv = "USDCHF,GBPUSD,USDCAD,EURUSD";
+    public String instrumentsCsv = "USDJPY";
 
     @Configurable("Dossier de sortie")
     public String outputDirectory = "C:\\jforex_history";
 
     @Configurable("Debut GMT yyyy-MM-dd")
-    public String startDate = "2020-01-01";
+    public String startDate = "2015-01-01";
 
     @Configurable("Fin GMT yyyy-MM-dd inclus (vide = dernier jour UTC cloture)")
     public String endDate = "";
@@ -71,6 +71,8 @@ public class DukascopyHistoricalTickExport implements IStrategy {
 
     private int queuedDays = 0;
     private int skippedDays = 0;
+    private int unavailableYears = 0;
+    private int unavailableDays = 0;
     private int completedDays = 0;
     private long completedQuotes = 0;
     private volatile boolean stopping = false;
@@ -282,26 +284,55 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         for (Instrument instrument : instruments) {
             exportedDaysByInstrument.put(instrument, 0);
             exportedTicksByInstrument.put(instrument, 0L);
-            for (long dayStart = startInclusive; dayStart < endExclusive; dayStart += DAY_MS) {
-                ExportJob job = buildJob(instrument, dayStart);
-                Path tempPath = tempPath(job.targetPath);
-                if (!overwriteExistingDays && Files.exists(job.targetPath)) {
-                    try {
-                        validateDayFile(job.targetPath, instrument.toString().replace("/", ""), dayStart);
-                        Files.deleteIfExists(tempPath);
-                        skippedDays++;
-                        continue;
-                    } catch (IOException error) {
-                        err("[history-export] jour invalide, a reexporter: " + job.targetPath
-                                + " : " + error.getMessage());
-                    }
-                }
-                if (Files.exists(tempPath)) {
-                    Files.delete(tempPath);
-                }
-                pendingJobs.addLast(job);
-                queuedDays++;
+            long firstTick = context.getDataService().getTimeOfFirstTick(instrument);
+            if (firstTick < 0) {
+                throw new IllegalStateException("Date du premier tick invalide pour " + instrument + ": " + firstTick);
             }
+            for (long yearStart = startInclusive; yearStart < endExclusive;) {
+                long yearEnd = Math.min(nextUtcYear(yearStart), endExclusive);
+                if (firstTick >= yearEnd) {
+                    unavailableYears++;
+                    unavailableDays += (int) ((yearEnd - yearStart) / DAY_MS);
+                    print(String.format(Locale.US,
+                            "[history-export] skip_year instrument=%s year=%s reason=no_tick_history first_available=%s",
+                            instrument, formatUtcDay(yearStart).substring(0, 4),
+                            firstTick == Long.MAX_VALUE ? "none" : formatUtcDay(firstTick)));
+                    yearStart = yearEnd;
+                    continue;
+                }
+                long availableStart = Math.max(yearStart, floorUtcDay(firstTick));
+                if (availableStart > yearStart) {
+                    unavailableDays += (int) ((availableStart - yearStart) / DAY_MS);
+                    print(String.format(Locale.US,
+                            "[history-export] partial_year instrument=%s year=%s first_available_day=%s",
+                            instrument, formatUtcDay(yearStart).substring(0, 4), formatUtcDay(availableStart)));
+                }
+                planAvailableDays(instrument, availableStart, yearEnd);
+                yearStart = yearEnd;
+            }
+        }
+    }
+
+    private void planAvailableDays(Instrument instrument, long startInclusive, long endExclusive) throws IOException {
+        for (long dayStart = startInclusive; dayStart < endExclusive; dayStart += DAY_MS) {
+            ExportJob job = buildJob(instrument, dayStart);
+            Path tempPath = tempPath(job.targetPath);
+            if (!overwriteExistingDays && Files.exists(job.targetPath)) {
+                try {
+                    validateDayFile(job.targetPath, instrument.toString().replace("/", ""), dayStart);
+                    Files.deleteIfExists(tempPath);
+                    skippedDays++;
+                    continue;
+                } catch (IOException error) {
+                    err("[history-export] jour invalide, a reexporter: " + job.targetPath
+                            + " : " + error.getMessage());
+                }
+            }
+            if (Files.exists(tempPath)) {
+                Files.delete(tempPath);
+            }
+            pendingJobs.addLast(job);
+            queuedDays++;
         }
     }
 
@@ -351,9 +382,11 @@ public class DukascopyHistoricalTickExport implements IStrategy {
     private void printSummary() {
         print(String.format(
                 Locale.US,
-                "[history-export] summary queued_days=%d skipped_days=%d completed_days=%d completed_quotes=%d",
+                "[history-export] summary queued_days=%d skipped_days=%d unavailable_years=%d unavailable_days=%d completed_days=%d completed_quotes=%d",
                 queuedDays,
                 skippedDays,
+                unavailableYears,
+                unavailableDays,
                 completedDays,
                 completedQuotes));
         for (Instrument instrument : exportedDaysByInstrument.keySet()) {
@@ -454,6 +487,15 @@ public class DukascopyHistoricalTickExport implements IStrategy {
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTimeInMillis();
+    }
+
+    private static long nextUtcYear(long timestampMs) {
+        Calendar calendar = Calendar.getInstance(GMT);
+        calendar.setTimeInMillis(timestampMs);
+        int nextYear = calendar.get(Calendar.YEAR) + 1;
+        calendar.clear();
+        calendar.set(nextYear, Calendar.JANUARY, 1);
         return calendar.getTimeInMillis();
     }
 

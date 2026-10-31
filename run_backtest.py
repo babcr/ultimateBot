@@ -42,11 +42,21 @@ from ultimateBot.backtester.risk.risk_manager import RiskManager
 from ultimateBot.backtester.strategy.structure_decision_engine import resolve_structure_rules
 from ultimateBot.backtester.strategy.dummy_strategy import DummyStrategy
 from ultimateBot.backtester.strategy.structure_strategy import StructureStrategy
+from ultimateBot.backtester.strategy.temporal_pattern_strategy import TemporalPatternStrategy
+from ultimateBot.backtester.strategy.temporal_patterns import TemporalPatternConfig
 from ultimateBot.backtester.strategy.swing_regression_decision_engine import resolve_swing_regression_rules
 from ultimateBot.backtester.strategy.swing_regression_strategy import SwingRegressionStrategy
 from ultimateBot.backtester.strategy.swing_regression_config import (
    DEFAULT_SWING_REGRESSION_CONFIG, SwingRegressionConfig,
 )
+from ultimateBot.backtester.strategy.regression_reentry_config import (
+   DEFAULT_REENTRY_PARAMETERS, RegressionReentryParameters,
+)
+from ultimateBot.backtester.strategy.regression_breakout_config import (
+   DEFAULT_BREAKOUT_PARAMETERS, RegressionBreakoutParameters,
+)
+from ultimateBot.backtester.strategy.regression_pullback_config import RegressionPullbackParameters
+from ultimateBot.backtester.strategy.regression_impulse_config import RegressionImpulseParameters
 
 BASE_HISTORY_PATH = Path(r"C:\jforex_history")
 
@@ -141,7 +151,7 @@ def parse_args(regression_config: SwingRegressionConfig | None = None) -> argpar
    parser.add_argument(
       "--balance",
       type=float,
-      default=50,
+      default=10_000_000.0,
       help="Initial balance for the backtest",
    )
    parser.add_argument(
@@ -163,10 +173,29 @@ def parse_args(regression_config: SwingRegressionConfig | None = None) -> argpar
    parser.add_argument(
       "--strategy",
       type=str,
-      choices=["structure", "swing-regression", "dummy"],
+      choices=["structure", "swing-regression", "swing-patterns", "swing-ts2vec", "swing-informer", "swing-grid", "swing-nn", "dummy"],
       default="structure",
-      help="Decision engine to run: market structure, swing regressions, or the dummy smoke strategy",
+      help="Decision engine: structure, swing regressions, swing patterns, TS2Vec/XGBoost, Informer, or dummy",
    )
+   parser.add_argument("--swing-ts2vec-model", "--swing-informer-model", "--swing-grid-model", "--swing-nn-model", type=Path, default=None,
+                       help="Frozen swing TS2Vec/XGBoost experiment or window directory, or Informer model directory")
+   parser.add_argument("--swing-ts2vec-threshold", "--swing-informer-threshold", "--swing-grid-threshold", "--swing-nn-threshold", type=float, default=None,
+                       help="Override the model's saved acceptance threshold (PnL/R, transformed trailing score, or binary-target probability)")
+   parser.add_argument("--swing-ts2vec-min-threshold", "--swing-informer-min-threshold", "--swing-grid-min-threshold", "--swing-nn-min-threshold", type=float, default=None,
+                       help="Minimum acceptance threshold, including adaptive decreases; also raises a lower initial threshold")
+   parser.add_argument("--swing-ts2vec-take-profit-r", "--swing-informer-take-profit-r", "--swing-grid-take-profit-r", "--swing-nn-take-profit-r", type=float, default=None,
+                       help="Fixed TP in multiples of actual fill risk; disables trailing even for models trained with trailing")
+   parser.add_argument("--swing-ts2vec-stop-buffer-pips", "--swing-informer-stop-buffer-pips", "--swing-grid-stop-buffer-pips", "--swing-nn-stop-buffer-pips", type=float, default=None,
+                       help="Override the model's stop margin beyond the swing pivot, in pips; 0 uses the pivot without a margin")
+   parser.add_argument("--swing-ts2vec-decision-log", "--swing-informer-decision-log", "--swing-grid-decision-log", "--swing-nn-decision-log", choices=("off", "accepted", "all"),
+                       nargs="?", const="accepted", default="off",
+                       help="Model decision traces: off (default), model-accepted signals only, or all for debugging; flag alone selects accepted")
+   parser.add_argument("--no-swing-ts2vec-decision-log", "--no-swing-informer-decision-log", "--no-swing-grid-decision-log", "--no-swing-nn-decision-log", dest="swing_ts2vec_decision_log",
+                       action="store_const", const="off", help="Disable model decision traces")
+   parser.add_argument("--swing-ts2vec-target-trades-per-day", "--swing-informer-target-trades-per-day", "--swing-grid-target-trades-per-day", "--swing-nn-target-trades-per-day", type=float, default=None,
+                       help="Positive model-accepted trade cadence per day across symbols (UTC), including fractional values")
+   parser.add_argument("--swing-ts2vec-threshold-step", "--swing-informer-threshold-step", "--swing-grid-threshold-step", "--swing-nn-threshold-step", type=float, default=None,
+                       help="Dynamic threshold adjustment step (default: 0.001 when a target cadence is set)")
    parser.add_argument(
       "--candle-interval",
       type=str,
@@ -199,6 +228,62 @@ def parse_args(regression_config: SwingRegressionConfig | None = None) -> argpar
       default=DEFAULT_REGRESSION_RULES["regression_score_threshold"],
       help="Minimum absolute slope-strength required by swing-regression, between 0 and 1; parallelism now has its own independent filter",
    )
+   parser.add_argument("--regression-entry-mode", choices=("trend", "failed-breakout", "breakout-retest", "hybrid"), default="trend",
+                       help="Directional swing entry, failed breakout, breakout/retest, or hybrid coordination of both channel entries")
+   patterns = parser.add_argument_group("Temporal swing groups (experimental --strategy swing-patterns)")
+   pattern_defaults = TemporalPatternConfig()
+   for field in fields(pattern_defaults):
+      option = "--pattern-" + field.name.replace("_", "-")
+      default = getattr(pattern_defaults, field.name)
+      if field.name == "family":
+         patterns.add_argument(option, choices=("all", "head-shoulders", "continuation"), default=default)
+      elif field.name == "head_shoulders_entry":
+         patterns.add_argument(option, choices=("breakout", "retest"), default=default)
+      else:
+         patterns.add_argument(option, type=type(default), default=default,
+                               help=f"TemporalPatternConfig.{field.name} (default: {default})")
+   parser.add_argument("--regression-max-spread-stop-ratio",type=float,default=0.,
+                       help="Reject submission spread / final planned stop distance above this value; 0 disables the check")
+   reentry_group = parser.add_argument_group(
+      "Failed-breakout entry parameters",
+      "Active with --regression-entry-mode failed-breakout or hybrid. Channel quality uses shared --regression-* filters. "
+      "Python settings: SwingRegressionConfig.reentry; see docs/regression_reentry.md.",
+   )
+   for parameter in fields(RegressionReentryParameters):
+      reentry_group.add_argument(
+         "--regression-reentry-" + parameter.name.replace("_", "-"),
+         type=str if parameter.name == "quality_mode" else int if parameter.name == "max_bars" else float,
+         default=getattr(DEFAULT_REENTRY_PARAMETERS, parameter.name),
+         help=parameter.metadata["help"] + " (default: %(default)s)",
+      )
+   breakout_group = parser.add_argument_group(
+      "Breakout-retest entry parameters",
+      "Active with --regression-entry-mode breakout-retest or hybrid. Python settings: SwingRegressionConfig.breakout; "
+      "see docs/regression_breakout.md. Supports --trailing-stop or a fixed reference TP for comparison.",
+   )
+   for parameter in fields(RegressionBreakoutParameters):
+      breakout_group.add_argument(
+         "--regression-breakout-" + parameter.name.replace("_", "-"),
+         type=str if parameter.name == "confirmation_mode" else int if parameter.name in ("max_bars", "confirmation_max_bars") else float,
+         default=getattr(DEFAULT_BREAKOUT_PARAMETERS, parameter.name),
+         help=parameter.metadata["help"] + " (default: %(default)s)",
+      )
+   pullback_group = parser.add_argument_group("Experimental hybrid directional pullback")
+   for parameter in fields(RegressionPullbackParameters):
+      options = dict(default=getattr(RegressionPullbackParameters(),parameter.name),help=parameter.metadata["help"])
+      if parameter.name == "enabled":
+         options["action"] = argparse.BooleanOptionalAction
+      else:
+         options["type"] = str if parameter.name == "regime" else int if parameter.name == "max_bars" else float
+      pullback_group.add_argument("--regression-pullback-"+parameter.name.replace("_","-"),**options)
+   impulse_group = parser.add_argument_group("Experimental hybrid breakout-hold")
+   for parameter in fields(RegressionImpulseParameters):
+      options = dict(default=getattr(RegressionImpulseParameters(),parameter.name),help=parameter.metadata["help"])
+      if parameter.name == "enabled":
+         options["action"] = argparse.BooleanOptionalAction
+      else:
+         options["type"] = float
+      impulse_group.add_argument("--regression-impulse-"+parameter.name.replace("_","-"),**options)
    parser.add_argument(
       "--adaptive-strategy", action="store_true", default=False,
       help=(
@@ -259,6 +344,10 @@ def parse_args(regression_config: SwingRegressionConfig | None = None) -> argpar
    parser.add_argument(
       "--adaptive-lookback-step", type=int, default=DEFAULT_ADAPTIVE_CONFIG.lookback_step,
       help=f"Discrete step between candidate lookbacks (default: {DEFAULT_ADAPTIVE_CONFIG.lookback_step})",
+   )
+   parser.add_argument(
+      "--adaptive-max-idle-bars", type=int, default=DEFAULT_ADAPTIVE_CONFIG.max_idle_bars,
+      help="Explore another configuration after this many closed analysis candles without a queued order, once adaptation has started and no positions/orders remain; 0 disables recovery",
    )
    parser.add_argument(
       "--adaptive-accuracy-window", type=int, default=DEFAULT_ADAPTIVE_CONFIG.accuracy_window,
@@ -621,16 +710,78 @@ def parse_args(regression_config: SwingRegressionConfig | None = None) -> argpar
       help="Controls whether volatility scaling rounds up or down",
    )
 
+   dataset = parser.add_argument_group("TS2Vec trade dataset (optional)")
+   dataset.add_argument("--trade-database", type=Path, default=None,
+                        help="Capture order-creation embeddings and close-only labels in this SQLite database")
+   dataset.add_argument("--dataset-run-id", default=None, help="Unique run identity; existing IDs are rejected")
+   dataset.add_argument("--dataset-campaign-id", default=None, help="Group runs from one seed sweep")
+   dataset.add_argument("--ts2vec-model", type=Path, default=Path("C:/TradingBotData/models/ts2vec_order_creation.pt"),
+                        help="Frozen checkpoint; trained once from observed candles at first order creation if missing")
+   dataset.add_argument("--ts2vec-context-bars", type=int, default=150, help="Fixed embedding window, independent of adaptive lookback")
+   dataset.add_argument("--ts2vec-output-dims", type=int, default=320)
+   dataset.add_argument("--ts2vec-hidden-dims", type=int, default=64)
+   dataset.add_argument("--ts2vec-depth", type=int, default=10)
+   dataset.add_argument("--ts2vec-train-iters", type=int, default=200)
+   dataset.add_argument("--ts2vec-seed", type=int, default=1, help="Encoder seed, kept fixed across adaptive seeds")
+   dataset.add_argument("--ts2vec-device", default="cpu")
+   dataset.add_argument("--ts2vec-threads", "--informer-threads", "--swing-grid-threads", "--swing-nn-threads", type=int, default=2)
+   dataset.add_argument("--trade-validator", type=Path, default=None,
+                        help="XGBoost artifact directory: approve each order before queuing/submitting it")
+   dataset.add_argument("--trade-validator-threshold", type=float, default=None,
+                        help="Override the artifact's validation-selected acceptance threshold, in [0,1]")
+   dataset.add_argument("--trade-validator-log", type=Path, default=None, help="JSONL decision audit; default C:/TradingBotData/validator_decisions/UUID.jsonl")
+
    # Select strategy defaults before parsing explicit options. The other engines
    # keep their existing defaults, including the shared structure CLI options.
    selector = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
    selector.add_argument("--strategy")
+   selector.add_argument("--swing-ts2vec-model", "--swing-informer-model", "--swing-grid-model", "--swing-nn-model", type=Path)
+   selector.add_argument("--trailing-start-rr-ratio", type=float)
    selection, _ = selector.parse_known_args()
    if selection.strategy == "swing-regression" or (selection.strategy is None and regression_config is not None):
       config = regression_config if regression_config is not None else DEFAULT_SWING_REGRESSION_CONFIG
       parser.set_defaults(strategy="swing-regression", swing_regression_config=config, **config.to_arg_defaults())
+   if selection.strategy in ("swing-ts2vec", "swing-informer", "swing-grid", "swing-nn"):
+      if selection.swing_ts2vec_model is None:
+         parser.error(f"--strategy {selection.strategy} requires --{selection.strategy}-model")
+      try:
+         from ultimateBot.backtester.strategy.swing_ts2vec_strategy import model_configuration
+         _, metadata, opportunity, _ = model_configuration(selection.swing_ts2vec_model)
+      except (OSError, ValueError, KeyError) as error:
+         parser.error(f"Cannot load frozen swing model: {error}")
+      effective_trailing_start = (opportunity.trailing_start_r if selection.trailing_start_rr_ratio is None
+                                  else selection.trailing_start_rr_ratio)
+      model_defaults = dict(candle_interval=format_candle_interval(timedelta(seconds=opportunity.interval_seconds)),
+                            order_expiration_bars=opportunity.order_expiration_bars,
+                            execution_delay=timedelta(seconds=opportunity.execution_delay_seconds),
+                            trailing_stop=True, trailing_start_rr_ratio=opportunity.trailing_start_r,
+                            reward_risk_ratio=max(DEFAULT_RISK_CONFIG.reward_risk_ratio, effective_trailing_start+1))
+      if metadata.get("scope"):
+         model_defaults["symbols"] = metadata["scope"]["symbols"]
+      parser.set_defaults(**model_defaults)
    args = parser.parse_args()
    try:
+      if args.strategy in ('swing-ts2vec', 'swing-informer', 'swing-grid', 'swing-nn') and args.swing_ts2vec_take_profit_r is not None:
+         args.trailing_stop = False
+         args.reward_risk_ratio = args.swing_ts2vec_take_profit_r
+         # This unused trailing reference must remain valid for the shared risk manager.
+         args.trailing_start_rr_ratio = None
+      validate_regression_entry_execution(args)
+      if args.trade_database is not None or args.trade_validator is not None:
+         from ultimateBot.backtester.embeddings.ts2vec_service import EmbeddingConfig
+         EmbeddingConfig(context_bars=args.ts2vec_context_bars, output_dims=args.ts2vec_output_dims,
+                         hidden_dims=args.ts2vec_hidden_dims, depth=args.ts2vec_depth,
+                         train_iters=args.ts2vec_train_iters, seed=args.ts2vec_seed,
+                         device=args.ts2vec_device, threads=args.ts2vec_threads)
+         if args.strategy != "swing-regression":
+            raise ValueError("Trade embeddings/validation require --strategy swing-regression")
+         if args.bandit_resume:
+            raise ValueError("Trade dataset capture cannot resume a bandit checkpoint without its fill snapshots")
+      if args.trade_validator_threshold is not None:
+         if args.trade_validator is None or not isfinite(args.trade_validator_threshold) or not 0 <= args.trade_validator_threshold <= 1:
+            raise ValueError("--trade-validator-threshold requires --trade-validator and a value in [0,1]")
+      if args.trade_validator is not None and args.contextual_bandit:
+         raise ValueError("Trade validation currently supports legacy adaptive or fixed strategies, not contextual-bandit shadow learning")
       resolve_trailing_start_rr_ratio(args.reward_risk_ratio, args.trailing_start_rr_ratio)
       resolve_backtest_trading_schedule(args)
       if args.regression_lookback_bars is not None and args.regression_lookback_bars < 2:
@@ -771,6 +922,8 @@ def resolve_backtest_regression_rules(args: argparse.Namespace) -> dict[str, Any
    config = getattr(args, "swing_regression_config", DEFAULT_SWING_REGRESSION_CONFIG)
    rules = config.to_rules()
    defaults = resolve_swing_regression_rules(config)
+   for key in ("regression_entry_mode", *DEFAULT_REENTRY_PARAMETERS.to_rules(), *DEFAULT_BREAKOUT_PARAMETERS.to_rules(), *RegressionPullbackParameters().to_rules(), *RegressionImpulseParameters().to_rules()):
+      rules[key] = getattr(args, key, defaults[key])
    for key, argument in {
       "confirmation_body_ratio": "confirmation_body_ratio",
       "min_rr_ratio": "structure_min_rr_ratio",
@@ -785,6 +938,7 @@ def resolve_backtest_regression_rules(args: argparse.Namespace) -> dict[str, Any
    lookback = getattr(args, "level_lookback_bars", None)
    rules.update({
       "level_lookback_bars": defaults["level_lookback_bars"] if lookback is None else lookback,
+      "regression_max_spread_stop_ratio":getattr(args,"regression_max_spread_stop_ratio",defaults["regression_max_spread_stop_ratio"]),
       "regression_lookback_bars": getattr(args, "regression_lookback_bars", rules["regression_lookback_bars"]),
       "regression_score_threshold": getattr(args, "regression_score_threshold", defaults["regression_score_threshold"]),
       "regression_min_parallelism": getattr(args, "regression_min_parallelism", defaults["regression_min_parallelism"]),
@@ -811,6 +965,78 @@ def resolve_backtest_regression_rules(args: argparse.Namespace) -> dict[str, Any
       "regression_require_candle_confirmation": getattr(args, "regression_candle_confirmation", defaults["regression_require_candle_confirmation"]),
    })
    return resolve_swing_regression_rules(rules)
+
+
+def validate_regression_entry_execution(args: argparse.Namespace) -> None:
+   if args.strategy in ("swing-ts2vec", "swing-informer", "swing-grid", "swing-nn"):
+      validate_swing_ts2vec_execution(args)
+   elif (getattr(args, "swing_ts2vec_model", None) is not None
+         or getattr(args, "swing_ts2vec_threshold", None) is not None
+         or getattr(args, "swing_ts2vec_min_threshold", None) is not None
+         or getattr(args, "swing_ts2vec_take_profit_r", None) is not None
+         or getattr(args, "swing_ts2vec_stop_buffer_pips", None) is not None
+         or getattr(args, "swing_ts2vec_decision_log", "off") != "off"
+         or getattr(args, "swing_ts2vec_target_trades_per_day", None) is not None
+         or getattr(args, "swing_ts2vec_threshold_step", None) is not None):
+      raise ValueError("Swing model options require --strategy swing-ts2vec, swing-informer, swing-grid or swing-nn")
+   if args.strategy == "swing-patterns":
+      resolve_temporal_pattern_config(args)
+      if any(bool(getattr(args, name, False)) for name in ("adaptive_strategy", "contextual_bandit")):
+         raise ValueError("swing-patterns requires fixed temporal-group parameters: disable adaptive strategy and contextual bandit")
+      if args.level_lookback_bars is not None and args.level_lookback_bars < 14:
+         raise ValueError("swing-patterns requires --level-lookback-bars >= 14")
+   if args.strategy != "swing-regression":
+      return
+   rules = resolve_backtest_regression_rules(args)
+   if rules["regression_entry_mode"] == "failed-breakout":
+      if any(bool(getattr(args, name, False)) for name in ("adaptive_strategy", "contextual_bandit", "trailing_stop")):
+         raise ValueError("failed-breakout requires fixed parameters and its center target: disable adaptive strategy, contextual bandit and trailing stop")
+   if rules["regression_entry_mode"] in ("breakout-retest", "hybrid"):
+      if any(bool(getattr(args, name, False)) for name in ("adaptive_strategy", "contextual_bandit")):
+         raise ValueError(f"{rules['regression_entry_mode']} requires fixed parameters: disable adaptive strategy and contextual bandit")
+
+
+def resolve_temporal_pattern_config(args: argparse.Namespace) -> TemporalPatternConfig:
+   defaults = TemporalPatternConfig()
+   return TemporalPatternConfig(**{field.name: getattr(args, "pattern_" + field.name, getattr(defaults, field.name))
+                                  for field in fields(defaults)})
+
+
+def validate_swing_ts2vec_execution(args):
+   from ultimateBot.backtester.strategy.swing_ts2vec_strategy import model_configuration, resolve_swing_threshold
+   from ultimateBot.backtester.strategy.swing_threshold import daily_target_config
+   if getattr(args, "swing_ts2vec_model", None) is None:
+      raise ValueError(f"--strategy {args.strategy} requires --{args.strategy}-model")
+   try:
+      _, metadata, opportunity, _ = model_configuration(args.swing_ts2vec_model)
+   except (OSError, KeyError) as error:
+      raise ValueError(f"Cannot load frozen swing model: {error}") from error
+   if metadata.get('model_type', 'swing-ts2vec') != args.strategy:
+      raise ValueError(f"Model type does not match --strategy {args.strategy}")
+   resolve_swing_threshold(metadata, getattr(args, "swing_ts2vec_threshold", None),
+                           getattr(args, "swing_ts2vec_min_threshold", None))
+   daily_target_config(getattr(args, "swing_ts2vec_target_trades_per_day", None),
+                       getattr(args, "swing_ts2vec_threshold_step", None))
+   stop_buffer = getattr(args, 'swing_ts2vec_stop_buffer_pips', None)
+   if stop_buffer is not None and (not isfinite(stop_buffer) or stop_buffer < 0):
+      raise ValueError('Swing stop buffer must be finite and nonnegative')
+   if args.adaptive_strategy or args.contextual_bandit:
+      raise ValueError("Frozen swing models require fixed parameters: disable adaptive strategy and contextual bandit")
+   if resolve_backtest_candle_interval(args).total_seconds() != opportunity.interval_seconds:
+      raise ValueError("Candle interval must match the frozen swing model")
+   fixed_tp = getattr(args, 'swing_ts2vec_take_profit_r', None)
+   if fixed_tp is not None:
+      if not isfinite(fixed_tp) or fixed_tp <= 0:
+         raise ValueError('Swing fixed take profit must be positive and finite')
+      if args.trailing_stop:
+         raise ValueError('A fixed swing TP requires trailing to be disabled')
+   elif not args.trailing_stop:
+      raise ValueError(f'Disable trailing by providing --{args.strategy}-take-profit-r')
+   if (args.order_expiration_bars != opportunity.order_expiration_bars
+         or getattr(args, "execution_delay", timedelta(0)).total_seconds() != opportunity.execution_delay_seconds):
+      raise ValueError("Use the frozen swing model's order expiry and execution delay")
+   if metadata.get("scope") and not set(args.symbols) <= set(metadata["scope"]["symbols"]):
+      raise ValueError("Selected symbols must belong to the frozen model's training scope")
 
 
 def resolve_backtest_candle_interval(args: argparse.Namespace, fallback: Any | None = None) -> timedelta:
@@ -877,6 +1103,7 @@ def build_engine(
    args: argparse.Namespace,
    strategy_override=None,
 ) -> BacktestEngine:
+   validate_regression_entry_execution(args)
    portfolio = Portfolio(initial_balance=args.balance)
    reports = ReportCollector()
    execution_model = ExecutionModel()
@@ -909,6 +1136,34 @@ def build_engine(
                minimum_candles=getattr(args, "strategy_minimum_candles", None),
                config=resolve_backtest_regression_config(args),
             )
+         elif args.strategy == "swing-patterns":
+            strategy = TemporalPatternStrategy(
+               config=resolve_temporal_pattern_config(args), lookback=args.level_lookback_bars,
+               analysis_interval=candle_interval,
+            )
+         elif args.strategy in ("swing-ts2vec", "swing-informer", "swing-grid", "swing-nn"):
+            from ultimateBot.backtester.strategy.swing_ts2vec_strategy import SwingTS2VecStrategy
+            from ultimateBot.backtester.strategy.swing_threshold import daily_target_config
+            strategy_type = SwingTS2VecStrategy
+            if args.strategy == 'swing-informer':
+               from ultimateBot.backtester.strategy.swing_informer_strategy import SwingInformerStrategy
+               strategy_type = SwingInformerStrategy
+            elif args.strategy == 'swing-nn':
+               from ultimateBot.backtester.strategy.swing_neural_strategy import SwingNeuralStrategy
+               strategy_type = SwingNeuralStrategy
+            elif args.strategy == 'swing-grid':
+               from ultimateBot.backtester.strategy.swing_grid_strategy import SwingGridStrategy
+               strategy_type = SwingGridStrategy
+            strategy = strategy_type(args.swing_ts2vec_model, threads=args.ts2vec_threads,
+                                          threshold=getattr(args, "swing_ts2vec_threshold", None),
+                                          min_threshold=getattr(args, "swing_ts2vec_min_threshold", None),
+                                          trailing_start_r=args.trailing_start_rr_ratio,
+                                          take_profit_r=getattr(args, 'swing_ts2vec_take_profit_r', None),
+                                          stop_buffer_pips=getattr(args, 'swing_ts2vec_stop_buffer_pips', None),
+                                          decision_log=getattr(args, "swing_ts2vec_decision_log", "off"),
+                                          daily_target=daily_target_config(
+                                             getattr(args, "swing_ts2vec_target_trades_per_day", None),
+                                             getattr(args, "swing_ts2vec_threshold_step", None)))
          else:
             strategy = StructureStrategy(
                structure_rules=resolve_backtest_structure_rules(args),
@@ -954,7 +1209,8 @@ def build_engine(
          accepted_risk_overrun=args.accepted_risk_overrun,
          reward_risk_ratio=getattr(args, "reward_risk_ratio", DEFAULT_RISK_CONFIG.reward_risk_ratio),
          trailing_start_rr_ratio=getattr(args, "trailing_start_rr_ratio", DEFAULT_RISK_CONFIG.trailing_start_rr_ratio),
-         limit_spread_ratio=getattr(args, "limit_spread_ratio", DEFAULT_RISK_CONFIG.limit_spread_ratio),
+         limit_spread_ratio=(args.max_spread_ratio if args.strategy in ("swing-ts2vec", "swing-informer", "swing-grid", "swing-nn")
+                             else getattr(args, "limit_spread_ratio", DEFAULT_RISK_CONFIG.limit_spread_ratio)),
          max_spread_ratio=getattr(args, "max_spread_ratio", DEFAULT_RISK_CONFIG.max_spread_ratio),
          fixed_quantity=args.quantity,
          candle_interval=candle_interval,
@@ -1015,6 +1271,12 @@ def build_engine(
       engine.contextual_optimizer = optimizer
       engine.learning_hooks = optimizer
       optimizer.bind_engine(engine, getattr(args, "symbols", ()))
+   if getattr(args, "trade_validator", None) is not None:
+      from ultimateBot.backtester.ml.trade_validator import attach_trade_validator
+      attach_trade_validator(engine, args)
+   if getattr(args, "trade_database", None) is not None:
+      from ultimateBot.backtester.embeddings.trade_dataset import attach_trade_dataset
+      attach_trade_dataset(engine, args, encoder=engine.trade_validator.encoder if engine.trade_validator else None)
    return engine
 
 
@@ -1054,12 +1316,73 @@ def print_symbol_summaries(engine: BacktestEngine) -> None:
 
 def print_swing_regression_diagnostics(engine: BacktestEngine) -> None:
    strategy = engine.strategy
+   if getattr(strategy, "fill_on_signal_release", False):
+      print(f"Frozen swing model: {strategy.directory}")
+      print(f"Swing context: {strategy.window.key}; model available after {strategy.available_after.isoformat()}")
+      print(f"Acceptance threshold: {strategy.threshold} (saved={strategy.trained_threshold}; source={strategy.threshold_source})")
+      print(f"Minimum acceptance threshold: {strategy.min_threshold}")
+      print(f"Structural stop buffer: {strategy.opportunity_config.stop_buffer_pips} pips "
+            f"(training={strategy.trained_stop_buffer_pips} pips)")
+      if strategy.take_profit_r is None:
+         print(f"Trailing activation: {strategy.opportunity_config.trailing_start_r} R "
+               f"(training={strategy.trained_trailing_start_r} R)")
+      else:
+         print(f"Fixed take profit: {strategy.take_profit_r} R; trailing disabled "
+               f"(training trailing activation={strategy.trained_trailing_start_r} R)")
+      print(f"Model decision traces: {strategy.decision_log}")
+      if strategy.daily_target is not None:
+         print(f"Dynamic threshold: {json.dumps(strategy.daily_target.summary(), sort_keys=True)}")
+         print(f"Initial threshold: {strategy.initial_threshold} (source={strategy.initial_threshold_source})")
+      print(f"Swing model decisions: {json.dumps(dict(strategy.counts), sort_keys=True)}")
+      print("Accepted signals still pass through the robot's risk and portfolio limits.")
+      return
+   if isinstance(strategy, TemporalPatternStrategy):
+      print("Temporal swing-pattern diagnostics:")
+      for name, count in sorted(strategy.tracker.counts.items()):
+         print(f"  {name}: {count}")
+      for name in ("head-shoulders-breakout", "inverse-head-shoulders-breakout",
+                   "head-shoulders-retest", "inverse-head-shoulders-retest", "consolidation-retest"):
+         trades = [t for t in engine.reports.trades if engine.trade_entry_modes.get(t.trade_id) == name]
+         print(f"  {name}: closed={len(trades)} pnl={sum(t.pnl for t in trades):.2f}")
+      return
    if not isinstance(strategy, SwingRegressionStrategy):
       return
 
    diagnostics = strategy.diagnostics_summary()
    analysis_windows = int(diagnostics.get("analysis_windows", 0))
    reason_counts = diagnostics.get("reason_counts", {})
+   entry_mode = strategy.regression_rules["regression_entry_mode"]
+   if entry_mode == "hybrid":
+      print("Hybrid diagnostics:")
+      print(f"  Closed-candle analysis windows: {analysis_windows}")
+      hybrid = diagnostics["hybrid"]
+      print(f"  Opposite-side confirmation conflicts: {hybrid['conflicting_confirmations']}")
+      print(f"  Same-side duplicate confirmations: {hybrid['same_side_duplicates']}")
+      print(f"  Complementary confirmations suppressed by primary entries: {hybrid['suppressed_complementary_confirmations']}")
+      print(f"  Windows blocked by symbol exposure: {reason_counts.get('hybrid_symbol_busy', 0)}")
+      for reason,count in reason_counts.items():
+         if reason.startswith("reentry_quality_"):
+            print(f"  {reason}: {count}")
+      for branch, counts in hybrid["branches"].items():
+         trades = [trade for trade in engine.reports.trades if engine.trade_entry_modes.get(trade.trade_id) == branch]
+         opened = sum(engine.trade_entry_modes.get(position.trade_id) == branch for position in engine.portfolio.positions.values())
+         print(f"  {branch}: raw_confirmations={counts['confirmations']} selected_signals={counts['selected_signals']} "
+               f"closed={len(trades)} wins={sum(trade.pnl > 0 for trade in trades)} "
+               f"pnl={sum(trade.pnl for trade in trades):.2f} open={opened}")
+         for reason, count in sorted(counts["reason_counts"].items(), key=lambda item: (-item[1], item[0])):
+            print(f"    {reason}: {count}")
+         print(f"    submission_spread_stop_rejections: {engine.entry_rejection_counts[(branch,'spread_stop_ratio')]}")
+      return
+   if entry_mode in ("failed-breakout", "breakout-retest"):
+      print(f"{entry_mode.capitalize()} diagnostics:")
+      print(f"  Closed-candle analysis windows: {analysis_windows}")
+      confirmations = analysis_windows - sum(int(count) for count in reason_counts.values())
+      label = "reentries" if entry_mode == "failed-breakout" else "breakout retests"
+      print(f"  Confirmed {label} before session/risk/validator checks: {confirmations}")
+      print("  Rejected or waiting analysis windows by reason:")
+      for reason, count in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0])):
+         print(f"    {reason}: {count}")
+      return
    low_volatility_rejections = int(reason_counts.get("market_volatility_too_low", 0))
    global_confirmation_rejections = sum(
       int(reason_counts.get(reason, 0))
@@ -1236,15 +1559,78 @@ def print_backtest_summary(engine: BacktestEngine) -> None:
    print("=======================================================")
 
 
-def main() -> None:
-   args = parse_args()
+def print_regression_parameters(rules: dict[str, Any]) -> None:
+   hybrid = rules["regression_entry_mode"] == "hybrid"
+   failed_breakout = rules["regression_entry_mode"] == "failed-breakout" or hybrid
+   breakout_retest = rules["regression_entry_mode"] == "breakout-retest" or hybrid
+   print(f"Regression entry mode: {rules['regression_entry_mode']}")
+   print(f"Maximum submission spread / final planned stop risk: {rules['regression_max_spread_stop_ratio']} (0 = disabled)")
+   if rules["regression_pullback_enabled"]:
+      print("Experimental trend-pullback parameters (config.pullback):")
+      for name,value in RegressionPullbackParameters.from_rules(rules).to_rules().items():
+         print(f"  --{name.replace('_','-')} = {value}")
+   if rules["regression_impulse_enabled"]:
+      print("Experimental breakout-hold parameters (config.impulse):")
+      for name,value in RegressionImpulseParameters.from_rules(rules).to_rules().items():
+         print(f"  --{name.replace('_','-')} = {value}")
+   if failed_breakout:
+      print("Failed-breakout dedicated entry parameters (config.reentry):")
+      for name, value in RegressionReentryParameters.from_rules(rules).to_rules().items():
+         print(f"  --{name.replace('_', '-')} = {value}")
+      print("Failed-breakout exits: excursion extreme + frozen ATR buffer / fixed channel-center target")
+   if breakout_retest:
+      print("Breakout-retest dedicated entry parameters (config.breakout):")
+      for name, value in RegressionBreakoutParameters.from_rules(rules).to_rules().items():
+         print(f"  --{name.replace('_', '-')} = {value}")
+      print("Breakout-retest stop: retest extreme + frozen ATR buffer; reference target uses final stop risk")
+      print("Shared regression channel parameters (config.regression):")
+   if failed_breakout and not breakout_retest:
+      print("Shared regression channel parameters (config.regression):")
+   if hybrid:
+      print("Hybrid arbitration: first confirmation consumes both branches; opposite-side conflicts rejected")
+      print("Hybrid exposure: at most one pending order or open position per symbol")
+   for key, label in (
+      ("lookback_bars", "Regression lookback bars"),
+      ("min_parallelism", "Regression minimum parallelism"),
+      ("market_volatility_window_bars", "Regression market volatility window"),
+      ("min_market_volatility_ratio", "Regression minimum market volatility"),
+      ("line_max_volatility_atr", "Regression line max volatility (ATR)"),
+      ("min_consecutive_swing_distance_atr", "Regression minimum consecutive swing distance (ATR)"),
+      ("max_filtered_consecutive_swing_pair_density", "Regression max filtered consecutive swing pair density"),
+      ("max_swing_density", "Regression max swing density"),
+      ("min_swings_per_side", "Regression minimum reference swings"),
+      ("live_analysis", "Regression live analysis"),
+   ):
+      print(f"  {label}: {rules['regression_' + key]}")
+   if failed_breakout or breakout_retest:
+      print("Directional trend, level-reaction and candle-color gates: disabled in this mode")
+      print("Global timeframe validation: disabled; entry confirmation uses the frozen channel event")
+      reference = "hybrid" if hybrid else "reentry" if failed_breakout else "breakout"
+      print(f"Parameter reference: docs/regression_{reference}.md")
+      return
+   print(f"Regression score threshold: {rules['regression_score_threshold']}")
+   print(f"Regression slope reference: {rules['regression_slope_scale_atr']} ATR per candle")
+   print(f"Regression global timeframe validation: {rules['regression_use_global_timeframe_validation']}")
+   print(f"Regression global timeframe multiplier: {rules['regression_global_timeframe_multiplier']}x")
+   print(f"Regression global reference slope threshold: {rules['regression_global_reference_slope_threshold_atr']} ATR per candle")
+   print(f"Regression global minimum parallelism: {rules['regression_global_min_parallelism']}")
+   print(f"Regression trigger max distance: {rules['regression_trigger_max_distance_atr']} ATR")
+   print(f"Regression support/resistance reaction required: {rules['regression_require_level_reaction']}")
+   print(f"Regression candle confirmation required: {rules['regression_require_candle_confirmation']}")
+   print(f"Confirmation minimum body/range ratio: {rules['confirmation_body_ratio']}")
+
+
+def main(regression_config: SwingRegressionConfig | None = None) -> None:
+   args = parse_args(regression_config=regression_config)
    structure_rules = resolve_backtest_structure_rules(args)
    regression_rules = resolve_backtest_regression_rules(args)
+   failed_breakout = args.strategy == "swing-regression" and regression_rules["regression_entry_mode"] == "failed-breakout"
+   channel_entry = args.strategy == "swing-regression" and regression_rules["regression_entry_mode"] in ("failed-breakout", "breakout-retest", "hybrid")
    candle_interval = resolve_backtest_candle_interval(args)
 
    strategy_analysis_mode = (
       f"{format_candle_interval(candle_interval)} analysis-window batching"
-      if args.strategy in ("structure", "swing-regression")
+      if args.strategy in ("structure", "swing-regression", "swing-patterns", "swing-ts2vec", "swing-informer", "swing-grid", "swing-nn")
       else f"fixed-size batching ({args.batch_size} ticks)"
    )
 
@@ -1262,29 +1648,36 @@ def main() -> None:
    if args.strategy == "structure":
       print(f"Structure min RR ratio: {structure_rules['min_rr_ratio']}")
    if args.strategy == "swing-regression":
-      print(f"Regression score threshold: {regression_rules['regression_score_threshold']}")
-      print(f"Regression minimum parallelism: {regression_rules['regression_min_parallelism']}")
-      print(f"Regression slope reference: {regression_rules['regression_slope_scale_atr']} ATR per candle")
-      print(f"Regression global timeframe validation: {regression_rules['regression_use_global_timeframe_validation']}")
-      print(f"Regression global timeframe multiplier: {regression_rules['regression_global_timeframe_multiplier']}x")
-      print(f"Regression global reference slope threshold: {regression_rules['regression_global_reference_slope_threshold_atr']} ATR per candle")
-      print(f"Regression global minimum parallelism: {regression_rules['regression_global_min_parallelism']}")
-      print(f"Regression market volatility window: {regression_rules['regression_market_volatility_window_bars']} candles")
-      print(f"Regression minimum market volatility: {regression_rules['regression_min_market_volatility_ratio']}")
-      print(f"Regression line max volatility: {regression_rules['regression_line_max_volatility_atr']} ATR")
-      print(f"Regression trigger max distance: {regression_rules['regression_trigger_max_distance_atr']} ATR")
-      print(f"Regression support/resistance reaction required: {regression_rules['regression_require_level_reaction']}")
-      print(f"Regression candle confirmation required: {regression_rules['regression_require_candle_confirmation']}")
-      print(f"Confirmation minimum body/range ratio: {regression_rules['confirmation_body_ratio']}")
-      print(f"Regression minimum consecutive swing distance: {regression_rules['regression_min_consecutive_swing_distance_atr']} ATR")
-      print(f"Regression max filtered consecutive swing pair density: {regression_rules['regression_max_filtered_consecutive_swing_pair_density']}")
-      print(f"Regression max swing density: {regression_rules['regression_max_swing_density']}")
-      print(f"Regression minimum reference swings: {regression_rules['regression_min_swings_per_side']}")
-   if args.strategy in ("structure", "swing-regression"):
+      print_regression_parameters(regression_rules)
+   if args.strategy == "swing-patterns":
+      print(f"Temporal swing groups (experimental): {resolve_temporal_pattern_config(args)}")
+   if args.strategy in ("swing-ts2vec", "swing-informer", "swing-grid", "swing-nn"):
+      from ultimateBot.backtester.strategy.swing_ts2vec_strategy import model_configuration, resolve_swing_threshold
+      from ultimateBot.backtester.strategy.swing_threshold import daily_target_config
+      directory, metadata, opportunity, window = model_configuration(args.swing_ts2vec_model)
+      print(f"Frozen swing model: {directory}")
+      threshold = resolve_swing_threshold(metadata, getattr(args, "swing_ts2vec_threshold", None),
+                                          getattr(args, "swing_ts2vec_min_threshold", None))
+      print(f"Swing context: {window.key}; threshold={threshold}; saved_threshold={metadata['threshold']}; target={metadata['target']}")
+      print(f"Minimum acceptance threshold: {getattr(args, 'swing_ts2vec_min_threshold', None)}")
+      print(f"Model decision traces: {args.swing_ts2vec_decision_log}")
+      if args.swing_ts2vec_target_trades_per_day is not None:
+         cadence = daily_target_config(args.swing_ts2vec_target_trades_per_day, args.swing_ts2vec_threshold_step)
+         print(f"Accepted-signal cadence (all symbols, UTC): {cadence.trades_per_day}/day; "
+               f"objective=1 per {cadence.period_days:g} days; threshold step={cadence.threshold_step}; "
+               "raise immediately after extra acceptances, lower after a period with none")
+      stop_buffer = (opportunity.stop_buffer_pips if args.swing_ts2vec_stop_buffer_pips is None
+                     else args.swing_ts2vec_stop_buffer_pips)
+      print(f"Structural stop buffer: {stop_buffer} pips (training={opportunity.stop_buffer_pips} pips)")
+      if args.swing_ts2vec_take_profit_r is None:
+         print(f"Trailing activation: {args.trailing_start_rr_ratio} R (training={opportunity.trailing_start_r} R)")
+      else:
+         print(f"Fixed take profit: {args.swing_ts2vec_take_profit_r} R; trailing disabled "
+               f"(training trailing activation={opportunity.trailing_start_r} R)")
+      print(f"Entries start after {metadata['available_after']}; earlier candles only warm up swing history")
+   if args.strategy in ("structure", "swing-regression") and not channel_entry:
       active_rules = regression_rules if args.strategy == "swing-regression" else structure_rules
       print(f"Support/resistance lookback bars: {active_rules['level_lookback_bars']}")
-      if args.strategy == "swing-regression":
-         print(f"Regression lookback bars: {active_rules['regression_lookback_bars']}")
       print(f"Protective stop source: {active_rules['protective_level_source']}")
       print(f"Protective stop buffer: {active_rules['protective_stop_buffer_atr']} ATR")
    print(f"Quantity override: {args.quantity}")
@@ -1298,11 +1691,19 @@ def main() -> None:
       f"Order lifetime: {order_config.expiration_bars} x {format_candle_interval(order_config.candle_interval)} "
       f"({order_config.expiration_delay.total_seconds():g} seconds)"
    )
-   print(f"Reward/risk ratio: {args.reward_risk_ratio}")
-   print(f"Position exit mode: {'trailing stop only (separate activation, breakeven, then one-risk steps)' if args.trailing_stop else 'fixed take profit'}")
+   if failed_breakout:
+      print("Position exit mode: fixed channel-center target; minimum entry RR is config.reentry.min_rr")
+   elif args.strategy == "swing-regression" and regression_rules["regression_entry_mode"] == "hybrid":
+      print("Position exit mode: failed-breakout = fixed channel center; breakout-retest = "
+            + ("trailing stop" if args.trailing_stop else "fixed reference TP"))
+      print(f"Breakout-retest reference reward/risk ratio: {args.reward_risk_ratio}")
+   else:
+      print(f"Reward/risk ratio: {args.reward_risk_ratio}")
+      print(f"Position exit mode: {'trailing stop only (separate activation, breakeven, then one-risk steps)' if args.trailing_stop else 'fixed take profit'}")
    adaptive_config = resolve_backtest_adaptive_config(args)
    if args.trailing_stop or adaptive_config is not None and adaptive_config.optimize_trailing_stop:
-      print(f"Trailing start RR ratio: {resolve_trailing_start_rr_ratio(args.reward_risk_ratio, args.trailing_start_rr_ratio)}")
+      if args.strategy not in ('swing-ts2vec', 'swing-informer', 'swing-grid', 'swing-nn') or args.trailing_stop:
+         print(f"Trailing start RR ratio: {resolve_trailing_start_rr_ratio(args.reward_risk_ratio, args.trailing_start_rr_ratio)}")
    if adaptive_config is not None:
       adaptive_trailing_values, adaptive_global_validation_values = resolve_backtest_adaptive_choice_values(
          args,

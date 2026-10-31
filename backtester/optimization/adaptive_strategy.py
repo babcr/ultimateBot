@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import sha256
 from math import isfinite
 from random import Random
@@ -33,7 +34,7 @@ class AdaptiveStrategyConfig:
     profit_factor_drop_mode: str = "relative"
     min_profit_factor: float = 1.01
     optimization_metric: str = "accuracy"
-    seed: int = 20
+    seed: int = 42
     min_accuracy_percent: float = 23.
     tighten_search_interval: bool = False
     search_long_arm_delta: int = 2
@@ -45,6 +46,7 @@ class AdaptiveStrategyConfig:
     timeframe_min_minutes: int = 9
     timeframe_max_minutes: int = 10
     timeframe_step_minutes: int = 1
+    max_idle_bars: int = 150
 
     def __post_init__(self) -> None:
         if self.lookback_min < 2 or self.lookback_max <= self.lookback_min:
@@ -81,6 +83,8 @@ class AdaptiveStrategyConfig:
             raise ValueError("Adaptive timeframe bounds require 1 <= min < max (max is exclusive)")
         if self.timeframe_step_minutes < 1:
             raise ValueError("Adaptive timeframe step must be positive")
+        if self.max_idle_bars < 0:
+            raise ValueError("Adaptive maximum idle bars must be non-negative; zero disables recovery")
 
     def candidates(
         self,
@@ -221,6 +225,8 @@ class SymbolAdaptiveState:
     current_risk_percent: float = 0.01
     maximum_accuracy: float | None = None
     risk_accuracy_ceiling: float = 0.0
+    idle_bars: int = 0
+    last_analysis_candle: datetime | None = None
 
 
 class AdaptiveStrategyOptimizer:
@@ -379,6 +385,55 @@ class AdaptiveStrategyOptimizer:
             "accuracy_below_minimum",
         )
 
+    def _apply_candidate(self, symbol, state, index):
+        selected = self.candidates[index]
+        self.strategy.set_history_lookback_bars(selected.lookback_bars, symbol=symbol)
+        if self._supports_global_timeframe_validation:
+            self.strategy.set_global_timeframe_validation_enabled(selected.use_global_timeframe_validation, symbol=symbol)
+        state.current_parameters = selected
+        state.configuration_id += 1
+        state.switch_count += 1
+        state.accuracy.clear()
+        state.profit_factor.clear()
+        state.reference_accuracy = None
+        state.last_accuracy = None
+        state.reference_metric_value = None
+        state.last_metric_value = None
+        state.current_risk_percent = self.risk_scaler.minimum_percent if self.config.optimize_risk else self.max_risk_percent
+        state.idle_bars = 0
+
+    def on_order_queued(self, order: OrderRequest) -> None:
+        state = self.state_for(order.symbol)
+        if order.strategy_configuration_id == state.configuration_id:
+            state.idle_bars = 0
+
+    def on_analysis_window(self, symbol: str, closed_at: datetime, *, has_active_exposure: bool = False) -> None:
+        """Recover an explored configuration without requiring another trade close."""
+        if not self.config.max_idle_bars:
+            return
+        state = self.state_for(symbol)
+        if state.last_analysis_candle is not None and closed_at <= state.last_analysis_candle:
+            return
+        state.last_analysis_candle = closed_at
+        # Preserve startup warmup and orders/positions already managed by the bot.
+        if state.configuration_id == 0 or has_active_exposure:
+            state.idle_bars = 0
+            return
+        state.idle_bars += 1
+        if state.idle_bars < self.config.max_idle_bars:
+            return
+        selectable = self._selection_indices(state)
+        if not selectable:
+            return
+        old = state.current_parameters
+        idle_bars = state.idle_bars
+        index = selectable[state.rng.randrange(len(selectable))]
+        self._apply_candidate(symbol, state, index)
+        print(f"[adaptive-strategy] symbol={symbol} timestamp={closed_at.isoformat()} "
+              f"configuration_id={state.configuration_id} reason=no_trade_activity idle_bars={idle_bars} "
+              f"previous_lookback={old.lookback_bars} lookback={state.current_parameters.lookback_bars} "
+              f"previous_trailing={old.trailing_stop_enabled} trailing={state.current_parameters.trailing_stop_enabled}", flush=True)
+
     def on_trade_closed(self, report: TradeReport) -> None:
         # Trades still open from an earlier period cannot rate the new parameters.
         state = self.state_for(report.symbol)
@@ -443,26 +498,7 @@ class AdaptiveStrategyOptimizer:
         # Uniform random choice inside this symbol's current interval.
         index = selectable_indices[state.rng.randrange(len(selectable_indices))]
         selected = self.candidates[index]
-        self.strategy.set_history_lookback_bars(selected.lookback_bars, symbol=report.symbol)
-        if self._supports_global_timeframe_validation:
-            self.strategy.set_global_timeframe_validation_enabled(
-                selected.use_global_timeframe_validation,
-                symbol=report.symbol,
-            )
-        state.current_parameters = selected
-        state.configuration_id += 1
-        state.switch_count += 1
-        state.accuracy.clear()
-        state.profit_factor.clear()
-        state.reference_accuracy = None
-        state.last_accuracy = None
-        state.reference_metric_value = None
-        state.last_metric_value = None
-        state.current_risk_percent = (
-            self.risk_scaler.minimum_percent
-            if self.config.optimize_risk
-            else self.max_risk_percent
-        )
+        self._apply_candidate(report.symbol, state, index)
         reasons = ",".join(reason for reason, enabled in (
             (f"{self.config.optimization_metric}_drop", declining),
             (below_minimum_reason, below_minimum),

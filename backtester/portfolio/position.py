@@ -34,3 +34,4 @@ class Position:
    learning_record: Optional["PositionLearningRecord"] = None
    profit_multiplier: float = 1.0
    account_currency: str = "engine_price_quantity"
+   close_after: Optional[datetime] = None

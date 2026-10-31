@@ -70,4 +70,6 @@ class TradeMonitor:
       else:
          pass
 
+      if position.close_after is not None and tick.timestamp >= position.close_after:
+         return CloseRequest(position.trade_id, tick.timestamp, exit_price, CloseReason.MAX_HOLDING_TIME)
       return None

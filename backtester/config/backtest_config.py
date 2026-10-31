@@ -9,7 +9,7 @@ from typing import Any
 
 SUPPORTED_CAPITAL_SOURCES = ("equity", "free_margin", "balance")
 
-DEFAULT_CANDLE_INTERVAL = timedelta(minutes=10)
+DEFAULT_CANDLE_INTERVAL = timedelta(minutes=30)
 
 _CANDLE_INTERVAL_PATTERN = re.compile(r"^\s*(?P<amount>\d+(?:\.\d+)?)\s*(?P<unit>[a-z]+)?\s*$", re.IGNORECASE)
 _CANDLE_INTERVAL_FACTORS = {

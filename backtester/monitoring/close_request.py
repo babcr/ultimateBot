@@ -12,6 +12,7 @@ class CloseReason(Enum):
    MANUAL = auto()
    TIMEOUT = auto()
    TRAILING_STOP = auto()
+   MAX_HOLDING_TIME = auto()
 
 @dataclass
 class CloseRequest:

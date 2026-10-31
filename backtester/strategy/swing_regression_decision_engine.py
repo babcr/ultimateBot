@@ -12,6 +12,10 @@ from ultimateBot.backtester.strategy.structure_decision_engine import (
 from ultimateBot.backtester.strategy.swing_regression_config import (
     DEFAULT_SWING_REGRESSION_CONFIG, SwingRegressionConfig,
 )
+from ultimateBot.backtester.strategy.regression_reentry_config import RegressionReentryParameters
+from ultimateBot.backtester.strategy.regression_breakout_config import RegressionBreakoutParameters
+from ultimateBot.backtester.strategy.regression_pullback_config import RegressionPullbackParameters
+from ultimateBot.backtester.strategy.regression_impulse_config import RegressionImpulseParameters
 
 
 # Public compatibility view; defaults now live in the grouped configuration.
@@ -23,6 +27,26 @@ def resolve_swing_regression_rules(config: dict[str, Any] | SwingRegressionConfi
         config = config.to_rules()
     overrides = {key: value for key, value in (config or {}).items() if value is not None}
     rules = resolve_structure_rules({**DEFAULT_SWING_REGRESSION_RULES, **overrides})
+    mode = rules["regression_entry_mode"]
+    if mode not in ("trend", "failed-breakout", "breakout-retest", "hybrid"):
+        raise ValueError("Regression entry mode must be trend, failed-breakout, breakout-retest or hybrid")
+    rules.update(RegressionReentryParameters.from_rules(rules).to_rules())
+    rules.update(RegressionBreakoutParameters.from_rules(rules).to_rules())
+    rules.update(RegressionPullbackParameters.from_rules(rules).to_rules())
+    rules.update(RegressionImpulseParameters.from_rules(rules).to_rules())
+    if rules["regression_pullback_enabled"] and mode != "hybrid":
+        raise ValueError("regression_pullback_enabled requires hybrid entry mode")
+    if rules["regression_impulse_enabled"] and mode != "hybrid":
+        raise ValueError("regression_impulse_enabled requires hybrid entry mode")
+    spread_stop = float(rules["regression_max_spread_stop_ratio"])
+    if not isfinite(spread_stop) or spread_stop < 0:
+        raise ValueError("regression_max_spread_stop_ratio must be finite and nonnegative")
+    rules["regression_max_spread_stop_ratio"] = spread_stop
+    if mode in ("failed-breakout", "breakout-retest", "hybrid"):
+        # Reentry is its own confirmation; directional gates describe another event.
+        rules["regression_require_level_reaction"] = False
+        rules["regression_require_candle_confirmation"] = False
+        rules["regression_use_global_timeframe_validation"] = False
     # This branch fits the exact requested window for the regression analysis.
     rules["level_lookback_bars"] = max(2, int(overrides.get("level_lookback_bars", DEFAULT_SWING_REGRESSION_RULES["level_lookback_bars"])))
     rules["regression_lookback_bars"] = max(2, int(
@@ -494,6 +518,7 @@ def decide_swing_regression(
     regression_source_atrs: dict[str, float] | None = None,
     level_source_atrs: dict[str, float] | None = None,
     candle_contexts: dict[str, dict[str, float]] | None = None,
+    channel_only: bool = False,
 ) -> tuple[SwingRegressionDecision | None, dict[str, Any]]:
     rules = resolve_swing_regression_rules(config)
     analysis: dict[str, Any] = {
@@ -631,6 +656,9 @@ def decide_swing_regression(
         return None, analysis
     if analysis["parallelism"] < rules["regression_min_parallelism"]:
         analysis["reasons"] = ["insufficient_parallelism"]
+        return None, analysis
+    if channel_only:
+        # Channel quality is independent of the directional trend entry rule.
         return None, analysis
     slope_strength = analysis["slope_strength"]
     if slope_strength == 0.0 or abs(slope_strength) < rules["regression_score_threshold"]:

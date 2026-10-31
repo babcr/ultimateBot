@@ -12,3 +12,4 @@ class StrategyContext:
    """Context information for strategy execution."""
    portfolio: "Portfolio"
    market_state: "MarketState"
+   pending_orders_for_symbol: int = 0

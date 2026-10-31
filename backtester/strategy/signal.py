@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 class SignalSide(Enum):
@@ -25,3 +26,9 @@ class Signal:
     protective_level_price: float | None = None
     protective_level_quality: float = 0.0
     protective_stop_buffer: float = 0.0
+    stop_loss_price: float | None = None
+    take_profit_price: float | None = None
+    minimum_reward_risk_ratio: float = 0.0
+    entry_context: dict[str, Any] | None = None
+    minimum_entry_price: float | None = None
+    maximum_entry_price: float | None = None

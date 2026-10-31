@@ -1,3 +1,6 @@
 [submodule "ts2vec"]
 	path = ts2vec
 	url = https://github.com/zhihanyue/ts2vec.git
+[submodule "Informer2020"]
+	path = Informer2020
+	url = https://github.com/zhouhaoyi/Informer2020.git

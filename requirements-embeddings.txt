@@ -1,0 +1,3 @@
+# The bot uses the encoder/loss only; upstream's 2021 data-loader pins are unnecessary.
+numpy>=1.26,<3
+torch>=2.2,<3

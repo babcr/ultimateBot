@@ -223,9 +223,50 @@ class RiskManager:
             tick=tick,
             volatility=volatility,
         )
+        # Check both the live executable quote and the planned order price. A spread
+        # fallback to a limit must not bypass an event's entry zone.
+        executable_price = tick.ask if side == OrderSide.BUY else tick.bid
+        for bound, lower_bound in ((signal.minimum_entry_price, True), (signal.maximum_entry_price, False)):
+            if bound is not None:
+                if not isfinite(bound) or bound <= 0:
+                    return None
+                for price in (placement.entry_price, executable_price):
+                    if not isfinite(price) or (price < bound if lower_bound else price > bound):
+                        return None
         terms = self.instrument_rules_provider(signal.symbol) if self.instrument_rules_provider else None
+        if signal.stop_loss_price is not None or signal.take_profit_price is not None:
+            # Explicit event exits stay fixed at order creation. Reject stale entries
+            # rather than replacing the event's invalidation/target with a generic RR.
+            if signal.stop_loss_price is None:
+                return None
+            stop = float(signal.stop_loss_price)
+            target = float(signal.take_profit_price) if signal.take_profit_price is not None else placement.take_profit
+            minimum_rr = float(signal.minimum_reward_risk_ratio)
+            if not all(isfinite(value) for value in (stop, target, minimum_rr, placement.entry_price)) or minimum_rr < 0:
+                return None
+            direction = 1.0 if side == OrderSide.BUY else -1.0
+            stop_distance = direction * (placement.entry_price - stop)
+            if stop_distance <= 0:
+                return None
+            if terms is not None:
+                stop_distance = terms.stop_distance(placement.entry_price, stop_distance, 0, direction > 0)
+                stop = placement.entry_price - direction * stop_distance
+            if signal.take_profit_price is None:
+                # A retest supplies its invalidation, while the reference TP and
+                # trailing activation must use that same final stop distance.
+                reward = self.risk_config.reward_risk_ratio * (stop_distance + volatility.raw_spread)
+                if placement.entry_mode == SignalEntryMode.MARKET:
+                    reward += volatility.raw_spread
+                target = placement.entry_price + direction * reward
+            placement = replace(placement, stop_loss=stop, take_profit=target, stop_distance=stop_distance)
         if terms is not None:
             placement = replace(placement, take_profit=terms.target_price(placement.take_profit, side == OrderSide.BUY))
+        if signal.stop_loss_price is not None:
+            reward = direction * (placement.take_profit - placement.entry_price)
+            # Executable entry already includes the spread; do not subtract it twice.
+            if reward <= 0 or reward / placement.stop_distance < minimum_rr:
+                return None
+            placement = replace(placement, take_profit_distance=reward)
         if placement.entry_price <= 0.0:
             return None
         if placement.stop_loss <= 0.0 or placement.take_profit <= 0.0:

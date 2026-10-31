@@ -18,6 +18,12 @@ from ultimateBot.backtester.strategy.swing_regression_decision_engine import (
     decide_swing_regression, resolve_swing_regression_rules, select_swing_window,
 )
 from ultimateBot.backtester.strategy.swing_strategy import SwingStrategy
+from ultimateBot.backtester.strategy.regression_reentry import FrozenChannel, RegressionReentryTracker
+from ultimateBot.backtester.strategy.regression_breakout import RegressionBreakoutTracker
+from ultimateBot.backtester.strategy.regression_hybrid import RegressionHybridTracker
+from ultimateBot.backtester.strategy.regression_pullback import RegressionPullbackTracker
+from ultimateBot.backtester.strategy.regression_impulse import RegressionImpulseTracker
+from ultimateBot.backtester.strategy.regression_entry_quality import select_reentry
 
 
 def _bucket_start(timestamp: datetime, interval: timedelta) -> datetime:
@@ -69,7 +75,7 @@ def _aggregate_candles_by_multiplier(
 
 
 class SwingRegressionStrategy(SwingStrategy):
-    """Fork at the shared swing vectors, evaluated once per fresh confirmed swing."""
+    """Shared swing fits with directional, channel-event and hybrid entries."""
 
     def __init__(
         self, regression_rules: dict[str, Any] | None = None,
@@ -85,14 +91,15 @@ class SwingRegressionStrategy(SwingStrategy):
         if analysis_interval is None:
             analysis_interval = self.config.volatility.candle_interval
         regression_lookback = int(resolved_rules["regression_lookback_bars"])
-        required_candles = max(int(minimum_candles or 2), regression_lookback)
+        channel_entry = resolved_rules["regression_entry_mode"] in ("failed-breakout", "breakout-retest", "hybrid")
+        required_candles = max(int(minimum_candles or 2), regression_lookback + int(channel_entry))
         if resolved_rules["regression_require_level_reaction"]:
             required_candles = max(required_candles, int(resolved_rules["level_lookback_bars"]))
         if float(resolved_rules["regression_min_market_volatility_ratio"]) > 0.0:
-            required_candles = max(required_candles, int(resolved_rules["regression_market_volatility_window_bars"]))
+            required_candles = max(required_candles, int(resolved_rules["regression_market_volatility_window_bars"]) + int(channel_entry))
         global_multiplier = int(resolved_rules["regression_global_timeframe_multiplier"])
         global_capacity = 0
-        if global_multiplier > 1:
+        if global_multiplier > 1 and not channel_entry:
             global_capacity = regression_lookback * global_multiplier
             if float(resolved_rules["regression_min_market_volatility_ratio"]) > 0.0:
                 global_capacity = max(
@@ -128,6 +135,13 @@ class SwingRegressionStrategy(SwingStrategy):
         self._global_reason_counts: Counter[str] = Counter()
         self._global_reason_counts_by_symbol: dict[str, Counter[str]] = {}
         self._last_global_closed_candle: dict[str, datetime] = {}
+        self._reentry = RegressionReentryTracker()
+        self._breakout = RegressionBreakoutTracker()
+        self._pullback = RegressionPullbackTracker("channel-bounce" if resolved_rules["regression_pullback_regime"] == "range" else "trend-pullback")
+        self._impulse = RegressionImpulseTracker()
+        self._hybrid = RegressionHybridTracker(self._reentry, self._breakout,
+            self._pullback if resolved_rules["regression_pullback_enabled"] else None,
+            self._impulse if resolved_rules["regression_impulse_enabled"] else None)
 
     @property
     def history_lookback_bars(self) -> int:
@@ -150,6 +164,11 @@ class SwingRegressionStrategy(SwingStrategy):
         return self._global_history_capacity
 
     def history_capacity_for_lookback(self, bars: int) -> int:
+        if self.regression_rules["regression_entry_mode"] in ("failed-breakout", "breakout-retest", "hybrid"):
+            required = max(super().history_capacity_for_lookback(bars), bars + 1)
+            if float(self.regression_rules["regression_min_market_volatility_ratio"]) > 0:
+                required = max(required, int(self.regression_rules["regression_market_volatility_window_bars"]) + 1)
+            return required
         required = max(super().history_capacity_for_lookback(bars), self.global_history_capacity)
         if self.regression_rules["regression_require_level_reaction"]:
             required = max(required, self.level_history_lookback_bars)
@@ -159,6 +178,10 @@ class SwingRegressionStrategy(SwingStrategy):
 
     def set_history_lookback_bars(self, bars: int, symbol: str | None = None) -> None:
         required = self.history_capacity_for_lookback(bars)
+        self._reentry.clear(symbol)
+        self._breakout.clear(symbol)
+        self._pullback.clear(symbol)
+        self._impulse.clear(symbol)
         if symbol is None:
             self.regression_rules["regression_lookback_bars"] = bars
             self.minimum_candles = required
@@ -172,6 +195,10 @@ class SwingRegressionStrategy(SwingStrategy):
 
     def set_analysis_interval(self, interval: timedelta, symbol: str | None = None) -> None:
         super().set_analysis_interval(interval, symbol=symbol)
+        self._reentry.clear(symbol)
+        self._breakout.clear(symbol)
+        self._pullback.clear(symbol)
+        self._impulse.clear(symbol)
         # The higher-timeframe confirmation remains based on the fixed startup interval.
         if symbol is None:
             self.last_analysis.clear()
@@ -196,7 +223,7 @@ class SwingRegressionStrategy(SwingStrategy):
         self.last_analysis.pop(symbol, None)
 
     def diagnostics_summary(self) -> dict[str, Any]:
-        return {
+        summary = {
             "analysis_windows": self._analysis_windows,
             "analysis_windows_by_symbol": dict(self._analysis_windows_by_symbol),
             "reason_counts": dict(self._reason_counts),
@@ -212,6 +239,9 @@ class SwingRegressionStrategy(SwingStrategy):
                 for symbol, counts in self._global_reason_counts_by_symbol.items()
             },
         }
+        if self.regression_rules["regression_entry_mode"] == "hybrid":
+            summary["hybrid"] = self._hybrid.diagnostics_summary()
+        return summary
 
     def _record_analysis(self, symbol: str, analysis: dict[str, Any], *, global_pipeline: bool = False) -> None:
         if global_pipeline:
@@ -242,6 +272,7 @@ class SwingRegressionStrategy(SwingStrategy):
         require_fresh_swings: bool = True,
         rules: dict[str, Any] | None = None,
         context: StrategyContext | None = None,
+        channel_only: bool = False,
     ) -> tuple[Any, dict[str, Any]] | None:
         rules = self.rules_for_symbol(symbol) if rules is None else rules
         regression_lookback = int(rules["regression_lookback_bars"])
@@ -329,6 +360,7 @@ class SwingRegressionStrategy(SwingStrategy):
                  for source in ("bid", "ask")}
                 if require_fresh_swings and rules["regression_require_candle_confirmation"] else None
             ),
+            channel_only=channel_only,
         )
         analysis["symbol"] = symbol
         analysis["closed_at"] = latest_closed
@@ -488,6 +520,10 @@ class SwingRegressionStrategy(SwingStrategy):
         return True
 
     def on_market_data(self, batch: TickBatch, context: StrategyContext) -> list[Signal]:
+        if self.regression_rules["regression_entry_mode"] == "hybrid":
+            return self._on_hybrid(batch, context)
+        if self.regression_rules["regression_entry_mode"] in ("failed-breakout", "breakout-retest"):
+            return self._on_channel_event(batch, context)
         point_size = max(context.market_state.get_point_size(batch.symbol), 1e-9)
         self._refresh_global_from_fixed_history(batch.symbol, context, point_size)
         circuits = self._get_structure_candles(batch.symbol, context)
@@ -568,3 +604,122 @@ class SwingRegressionStrategy(SwingStrategy):
             protective_level_quality=decision.protective_level_quality,
             protective_stop_buffer=decision.protective_stop_buffer,
         )]
+
+    def _fit_channel_before_event(self, batch: TickBatch, context: StrategyContext,
+                                  circuits: dict[str, list[Candle]], rules: dict[str, Any]
+                                  ) -> tuple[FrozenChannel | None, dict[str, Any] | None]:
+        mid = context.market_state.get_candles(
+            batch.symbol, include_active=False, price_source="mid",
+            limit=len(circuits["bid"]), candle_interval=self.get_analysis_interval(batch.symbol),
+        )
+        if len(mid) != len(circuits["bid"]) or mid[-1].start_time != circuits["bid"][-1].start_time:
+            return None, None
+        # The live cache contains the event candle; reconstruct swings from the
+        # preceding closed history so neither detector leaks that candle into its fit.
+        evaluation = self._evaluate_regression_pipeline(
+            batch.symbol, circuits["bid"][:-1], circuits["ask"][:-1], mid[:-1],
+            max(context.market_state.get_point_size(batch.symbol), 1e-9),
+            timeframe_label="local", timeframe_multiplier=1, require_fresh_swings=False,
+            rules=rules, channel_only=True,
+        )
+        if evaluation is None:
+            return None, None
+        _, analysis = evaluation
+        if analysis["reasons"]:
+            return None, analysis
+        return FrozenChannel(analysis, circuits["bid"][-2].start_time,
+                             circuits["bid"][-2].close_price, circuits["ask"][-2].close_price), analysis
+
+    def _on_hybrid(self, batch: TickBatch, context: StrategyContext) -> list[Signal]:
+        busy = ((context.portfolio is not None and context.portfolio.has_open_position(batch.symbol))
+                or getattr(context, "pending_orders_for_symbol", 0) > 0)
+        if busy:
+            self._hybrid.clear(batch.symbol)
+        circuits = self._get_structure_candles(batch.symbol, context)
+        if circuits is None:
+            return []
+        latest_closed = circuits["bid"][-1].start_time
+        if self._last_closed_candle.get(batch.symbol) == latest_closed:
+            return []
+        self._last_closed_candle[batch.symbol] = latest_closed
+        rules = self.rules_for_symbol(batch.symbol)
+        if busy:
+            signal = None
+            analysis = {"entry_mode": "hybrid", "symbol": batch.symbol, "closed_at": latest_closed,
+                        "direction": "flat", "selected_entry_mode": None,
+                        "reasons": ["hybrid_symbol_busy"], "branches": {}}
+        else:
+            channel, fit_analysis = None, None
+            if self._hybrid.needs_channel(batch.symbol):
+                channel, fit_analysis = self._fit_channel_before_event(batch, context, circuits, rules)
+            signal, analysis = self._hybrid.evaluate(
+                batch.symbol, circuits["bid"][-1], circuits["ask"][-1], batch.ticks[-1].timestamp,
+                self.get_analysis_interval(batch.symbol), rules, channel, fit_analysis,
+            )
+        signal = self._select_channel_entry(signal,analysis,batch,context,rules)
+        self.last_analysis[batch.symbol] = analysis
+        self._record_analysis(batch.symbol, analysis)
+        if rules["regression_live_analysis"]:
+            branch_reasons = {name: result["reasons"] for name, result in analysis["branches"].items()}
+            print(f"[regression-hybrid] symbol={batch.symbol} closed={latest_closed.isoformat()} "
+                  f"selected={analysis['selected_entry_mode']} reason={','.join(analysis['reasons'])} "
+                  f"branches={branch_reasons}", flush=True)
+        return [signal] if signal else []
+
+    def _select_channel_entry(self,signal,analysis,batch,context,rules):
+        if (signal is None or (signal.entry_context or {}).get("entry_mode") != "failed-breakout"
+                or rules["regression_reentry_quality_mode"] == "legacy"):
+            return signal
+        closed = context.market_state.get_candles(batch.symbol,include_active=False,price_source="mid",
+            limit=1,candle_interval=self.get_analysis_interval(batch.symbol))
+        if not closed or closed[-1].start_time != analysis["closed_at"]:
+            signal,reason = None,"reentry_quality_missing_candle"
+        else:
+            signal,reason = select_reentry(signal,closed[-1],rules)
+        if reason:
+            analysis.update(direction="flat",reasons=[reason])
+        return signal
+
+    def _on_channel_event(self, batch: TickBatch, context: StrategyContext) -> list[Signal]:
+        circuits = self._get_structure_candles(batch.symbol, context)
+        if circuits is None:
+            return []
+        latest_closed = circuits["bid"][-1].start_time
+        if self._last_closed_candle.get(batch.symbol) == latest_closed:
+            return []
+        self._last_closed_candle[batch.symbol] = latest_closed
+        rules = self.rules_for_symbol(batch.symbol)
+        mode = rules["regression_entry_mode"]
+        tracker = self._reentry if mode == "failed-breakout" else self._breakout
+        interval = self.get_analysis_interval(batch.symbol)
+        channel = None
+        if batch.symbol not in tracker.events:
+            channel, analysis = self._fit_channel_before_event(batch, context, circuits, rules)
+            if analysis is None:
+                return []
+            if analysis["reasons"]:
+                analysis.update(entry_mode=mode, channel_fitted_through=analysis["closed_at"],
+                                closed_at=latest_closed)
+                self.last_analysis[batch.symbol] = analysis
+                self._record_analysis(batch.symbol, analysis)
+                return []
+        signal, analysis = tracker.evaluate(
+            batch.symbol, circuits["bid"][-1], circuits["ask"][-1], batch.ticks[-1].timestamp,
+            interval, rules, channel,
+        )
+        signal = self._select_channel_entry(signal,analysis,batch,context,rules)
+        self.last_analysis[batch.symbol] = analysis
+        self._record_analysis(batch.symbol, analysis)
+        if rules["regression_live_analysis"]:
+            event_details = (
+                f"bars={analysis.get('breakout_bars')} trigger={analysis.get('retest_trigger')} "
+                f"first_retest_bar={analysis.get('first_retest_bar')} confirmation_bars={analysis.get('confirmation_bars')} "
+                f"deadline_bar={analysis.get('confirmation_deadline_bar')} "
+                f"confirmation_level={analysis.get('confirmation_level')} stop={analysis.get('breakout_stop')}"
+                if mode == "breakout-retest" else
+                f"excursion_atr={analysis.get('excursion_atr')} target={analysis.get('reentry_target')}"
+            )
+            print(f"[regression-{mode}] symbol={batch.symbol} closed={latest_closed.isoformat()} "
+                  f"direction={analysis['direction']} reason={','.join(analysis['reasons'])} "
+                  f"{event_details}", flush=True)
+        return [signal] if signal else []

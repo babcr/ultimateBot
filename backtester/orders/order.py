@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 from ultimateBot.backtester.data.tick import Tick
 
@@ -59,6 +59,7 @@ class OrderRequest:
    learning_record: PositionLearningRecord | None = None
    profit_multiplier: float = 1.0
    account_currency: str = "engine_price_quantity"
+   strategy_entry_context: dict[str, Any] | None = None
 
 
 class PendingOrderQueue:

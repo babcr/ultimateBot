@@ -1,5 +1,16 @@
 # Moteur de régression des swings
 
+Le mode expérimental `--regression-entry-mode failed-breakout` et son lanceur
+à paramètres fixes sont décrits dans [regression_reentry.md](../../docs/regression_reentry.md).
+La description ci-dessous porte sur le mode historique `trend`.
+
+Le mode `--regression-entry-mode breakout-retest` et son lanceur avec trailing
+sont décrits dans [regression_breakout.md](../../docs/regression_breakout.md).
+
+Le mode `--regression-entry-mode hybrid` coordonne ces deux entrées, conserve
+leurs sorties respectives et limite l'exposition à un ordre ou une position
+par paire : voir [regression_hybrid.md](../../docs/regression_hybrid.md).
+
 Le moteur `swing-regression` coexiste avec `structure`, qui reste le choix par
 défaut. Les deux stratégies partagent la construction des bougies fermées et
 l'extraction des swings : lows sur l'ask, highs sur le bid. La branche de

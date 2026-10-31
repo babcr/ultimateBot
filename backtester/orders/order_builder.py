@@ -49,6 +49,8 @@ class OrderBuilder:
             trailing_stop_activation_price=evaluation.trailing_stop_activation_price,
             profit_multiplier=evaluation.profit_multiplier,
             account_currency=evaluation.account_currency,
+            trailing_stop_enabled=False if signal.take_profit_price is not None else None,
+            strategy_entry_context=dict(signal.entry_context) if signal.entry_context else None,
         )
         self._next_order_id += 1
         return order
